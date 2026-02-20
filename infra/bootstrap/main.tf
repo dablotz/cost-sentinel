@@ -173,7 +173,7 @@ resource "aws_codebuild_project" "build" {
 
   source {
     type      = "CODEPIPELINE"
-    buildspec = file("${path.module}/buildspec-build.yml")
+    buildspec = "infra/bootstrap/buildspec-build.yml"
   }
 }
 
@@ -222,7 +222,7 @@ resource "aws_codebuild_project" "deploy_dev" {
 
   source {
     type      = "CODEPIPELINE"
-    buildspec = file("${path.module}/buildspec-deploy-dev.yml")
+    buildspec = "infra/bootstrap/buildspec-deploy-dev.yml"
   }
 }
 
