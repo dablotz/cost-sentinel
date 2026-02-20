@@ -27,7 +27,8 @@ phases:
         budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
         EOF
 
-      - terraform init \
+      - |
+        terraform init \
           -backend-config="bucket=${TF_STATE_BUCKET}" \
           -backend-config="key=${TF_STATE_KEY}" \
           -backend-config="region=${AWS_REGION}" \
