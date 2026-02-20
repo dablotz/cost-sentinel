@@ -268,8 +268,11 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
       # Use connection
       {
         Effect = "Allow",
-        Action = ["codestar-connections:UseConnection"],
-        Resource = aws_codestarconnections_connection.github.arn
+        Action = [
+            "codeconnections:UseConnection",
+            "codestar-connections:UseConnection"
+        ],
+        Resource = aws_codestarconnections_connection.github.arn    
       }
     ]
   })
