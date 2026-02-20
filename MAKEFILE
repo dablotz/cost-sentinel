@@ -1,0 +1,24 @@
+DIST_DIR=dist
+ZIP=$(DIST_DIR)/ingestor.zip
+
+.PHONY: build
+build:
+	rm -rf $(DIST_DIR)
+	mkdir -p $(DIST_DIR)
+	cd app/ingestor && zip -r ../../$(ZIP) handler.py requirements.txt >/dev/null
+
+.PHONY: tf-init
+tf-init:
+	cd infra/envs/dev && terraform init
+
+.PHONY: tf-plan
+tf-plan: build
+	cd infra/envs/dev && terraform plan
+
+.PHONY: tf-apply
+tf-apply: build
+	cd infra/envs/dev && terraform apply
+
+.PHONY: tf-destroy
+tf-destroy:
+	cd infra/envs/dev && terraform destroy

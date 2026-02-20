@@ -1,0 +1,37 @@
+version: 0.2
+
+env:
+  variables:
+    TF_IN_AUTOMATION: "true"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip
+      - unzip -o /tmp/terraform.zip -d /usr/local/bin
+
+  build:
+    commands:
+      - test -f dist/ingestor.zip
+      - cd infra/envs/dev
+
+      # Create tfvars from environment variables supplied by CodeBuild project
+      - |
+        cat > terraform.tfvars <<EOF
+        alerts_bucket_name = "${ALERTS_BUCKET_NAME_DEV}"
+        lambda_zip_path    = "../../dist/ingestor.zip"
+        alert_email        = "${BUDGET_EMAIL}"
+        monthly_budget_usd = ${MONTHLY_BUDGET_USD}
+        budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
+        EOF
+
+      - terraform init \
+          -backend-config="bucket=${TF_STATE_BUCKET}" \
+          -backend-config="key=${TF_STATE_KEY}" \
+          -backend-config="region=${AWS_REGION}" \
+          -backend-config="dynamodb_table=${TF_LOCK_TABLE}"
+
+      - terraform plan -out=tfplan
+      - terraform apply -auto-approve tfplan

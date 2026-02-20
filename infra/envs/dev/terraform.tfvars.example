@@ -1,0 +1,5 @@
+alerts_bucket_name = "greg-cost-sentinel-dev-<unique-suffix>"
+lambda_zip_path    = "../../dist/ingestor.zip"
+alert_email        = "you@example.com"
+monthly_budget_usd = 10
+budget_thresholds_percent = [10, 50, 80, 100]

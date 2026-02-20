@@ -1,0 +1,26 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip
+      - unzip -o /tmp/terraform.zip -d /usr/local/bin
+  pre_build:
+    commands:
+      - terraform fmt -check -recursive
+      - cd infra/envs/dev
+      - terraform init -backend=false
+      - terraform validate
+      - cd ../../..
+  build:
+    commands:
+      - mkdir -p dist
+      - cd app/ingestor
+      - zip -r ../../dist/ingestor.zip handler.py requirements.txt
+artifacts:
+  files:
+    - dist/ingestor.zip
+    - infra/**/*
+    - app/**/*

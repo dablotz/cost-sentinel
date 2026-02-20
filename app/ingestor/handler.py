@@ -1,0 +1,79 @@
+import json
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+
+import boto3
+
+s3 = boto3.client("s3")
+
+ALERTS_BUCKET = os.environ["ALERTS_BUCKET"]
+KEY_PREFIX = os.environ.get("KEY_PREFIX", "alerts")
+WRITE_LATEST = os.environ.get("WRITE_LATEST", "true").lower() == "true"
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _to_jsonl(records: List[Dict[str, Any]]) -> bytes:
+    lines = [json.dumps(r, separators=(",", ":"), sort_keys=True) for r in records]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _s3_put(key: str, body: bytes, content_type: str = "application/json") -> None:
+    s3.put_object(
+        Bucket=ALERTS_BUCKET,
+        Key=key,
+        Body=body,
+        ContentType=content_type,
+        ServerSideEncryption="AES256",
+    )
+
+
+def _normalize_sns_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    SNS -> Lambda event shape:
+    event["Records"][i]["Sns"]["Message"] is usually JSON for Budgets notifications,
+    but we treat it as opaque and store both raw + parsed if possible.
+    """
+    out: List[Dict[str, Any]] = []
+    received_at = _utc_now().isoformat()
+
+    for rec in event.get("Records", []):
+        sns = rec.get("Sns", {})
+        msg_raw = sns.get("Message", "")
+        msg_parsed = None
+        try:
+            msg_parsed = json.loads(msg_raw)
+        except Exception:
+            msg_parsed = None
+
+        out.append(
+            {
+                "received_at": received_at,
+                "source": "sns",
+                "topic_arn": sns.get("TopicArn"),
+                "subject": sns.get("Subject"),
+                "message_id": sns.get("MessageId"),
+                "timestamp": sns.get("Timestamp"),
+                "raw_message": msg_raw,
+                "parsed_message": msg_parsed,
+            }
+        )
+
+    return out
+
+
+def lambda_handler(event, context):
+    records = _normalize_sns_event(event)
+
+    now = _utc_now()
+    key = f"{KEY_PREFIX}/{now:%Y/%m/%d}/alerts.jsonl"
+    _s3_put(key, _to_jsonl(records), content_type="application/jsonl")
+
+    if WRITE_LATEST and records:
+        latest_key = f"{KEY_PREFIX}/latest.json"
+        _s3_put(latest_key, json.dumps(records[-1], indent=2).encode("utf-8"))
+
+    return {"status": "ok", "written": len(records), "key": key}
