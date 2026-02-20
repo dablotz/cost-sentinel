@@ -10,7 +10,7 @@ variable "name_prefix" {
 
 variable "github_repo" {
   type        = string
-  description = "GitHub repo in owner/name format, e.g. gregblotzer/cost-sentinel"
+  description = "GitHub repo in owner/name format, e.g. mygitrepo/cost-sentinel"
 }
 
 variable "github_branch" {

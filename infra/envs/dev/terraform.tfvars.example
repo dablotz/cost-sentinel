@@ -1,4 +1,4 @@
-alerts_bucket_name = "greg-cost-sentinel-dev-<unique-suffix>"
+alerts_bucket_name = "arbitrary-cost-sentinel-dev-<unique-suffix>"
 lambda_zip_path    = "../../dist/ingestor.zip"
 alert_email        = "you@example.com"
 monthly_budget_usd = 10
