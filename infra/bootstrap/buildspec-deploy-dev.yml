@@ -17,7 +17,7 @@ phases:
       - test -f dist/ingestor.zip
       - cd infra/envs/dev
 
-      # Create tfvars from environment variables supplied by CodeBuild project
+      # Create terraform.tfvars
       - |
         cat > terraform.tfvars <<EOF
         alerts_bucket_name = "${ALERTS_BUCKET_NAME_DEV}"
@@ -27,12 +27,18 @@ phases:
         budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
         EOF
 
+      # Create backend config
       - |
-        terraform init \
-        -backend-config="bucket=${TF_STATE_BUCKET}" \
-        -backend-config="key=${TF_STATE_KEY}" \
-        -backend-config="region=${AWS_REGION}" \
-        -backend-config="dynamodb_table=${TF_LOCK_TABLE}"
+        cat > backend.hcl <<EOF
+        bucket         = "${TF_STATE_BUCKET}"
+        key            = "${TF_STATE_KEY}"
+        region         = "${AWS_REGION}"
+        dynamodb_table = "${TF_LOCK_TABLE}"
+        EOF
 
+      # Initialize Terraform
+      - terraform init -backend-config=backend.hcl
+
+      # Plan and apply
       - terraform plan -out=tfplan
       - terraform apply -auto-approve tfplan
