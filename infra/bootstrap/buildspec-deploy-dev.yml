@@ -14,14 +14,28 @@ phases:
 
   build:
     commands:
-      - test -f dist/ingestor.zip
+      # Debug (keep for now; remove once stable)
+      - echo "PWD:" && pwd
+      - echo "Top-level files:" && ls -la
+      - echo "Find ingestor.zip:" && find . -maxdepth 6 -name "ingestor.zip" -print
+
+      # Locate the zip from the incoming artifact (wherever CodePipeline put it)
+      - ZIP_PATH=$(find . -maxdepth 10 -name "ingestor.zip" | head -n 1)
+      - test -n "$ZIP_PATH"
+      - echo "Using ZIP_PATH=$ZIP_PATH"
+
+      # Ensure the env-local dist exists and copy zip there
+      - mkdir -p infra/envs/dev/dist
+      - cp "$ZIP_PATH" infra/envs/dev/dist/ingestor.zip
+      - ls -la infra/envs/dev/dist/ingestor.zip
+
       - cd infra/envs/dev
 
       # Create terraform.tfvars
       - |
         cat > terraform.tfvars <<EOF
         alerts_bucket_name = "${ALERTS_BUCKET_NAME_DEV}"
-        lambda_zip_path    = "../../dist/ingestor.zip"
+        lambda_zip_path    = "./dist/ingestor.zip"
         alert_email        = "${BUDGET_EMAIL}"
         monthly_budget_usd = ${MONTHLY_BUDGET_USD}
         budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
