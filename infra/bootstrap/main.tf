@@ -149,7 +149,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
       { Effect = "Allow", Action = ["s3:*"], Resource = "*" },
 
       # IAM PassRole (needed for Lambda execution role that Terraform creates)
-      { Effect = "Allow", Action = ["iam:PassRole", "iam:GetRole", "iam:CreateRole", "iam:DeleteRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions"],Resource = "*" }
+      { Effect = "Allow", Action = ["iam:PassRole", "iam:GetRole", "iam:CreateRole", "iam:DeleteRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions"], Resource = "*" }
     ]
   })
 }
