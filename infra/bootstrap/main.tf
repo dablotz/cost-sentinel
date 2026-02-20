@@ -72,10 +72,10 @@ resource "aws_dynamodb_table" "tflock" {
   name         = "${var.name_prefix}-tf-lock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
-  attribute { 
+  attribute {
     name = "LockID"
-    type = "S" 
-    }
+    type = "S"
+  }
 }
 
 # ----------------------------
@@ -96,9 +96,9 @@ resource "aws_iam_role" "codebuild_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "codebuild.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -111,14 +111,14 @@ resource "aws_iam_role_policy" "codebuild_policy" {
     Statement = [
       # Logs
       {
-        Effect = "Allow",
-        Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"],
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
       },
       # Pipeline artifacts bucket access
       {
         Effect = "Allow",
-        Action = ["s3:GetObject","s3:PutObject","s3:ListBucket"],
+        Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
         Resource = [
           aws_s3_bucket.artifacts.arn,
           "${aws_s3_bucket.artifacts.arn}/*"
@@ -127,15 +127,15 @@ resource "aws_iam_role_policy" "codebuild_policy" {
       # Terraform state bucket + lock table
       {
         Effect = "Allow",
-        Action = ["s3:GetObject","s3:PutObject","s3:ListBucket","s3:GetBucketLocation"],
+        Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:GetBucketLocation"],
         Resource = [
           aws_s3_bucket.tfstate.arn,
           "${aws_s3_bucket.tfstate.arn}/*"
         ]
       },
       {
-        Effect = "Allow",
-        Action = ["dynamodb:GetItem","dynamodb:PutItem","dynamodb:DeleteItem","dynamodb:DescribeTable"],
+        Effect   = "Allow",
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:DescribeTable"],
         Resource = aws_dynamodb_table.tflock.arn
       },
 
@@ -150,7 +150,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 
       # IAM PassRole (needed for Lambda execution role that Terraform creates)
       { Effect = "Allow", Action = ["iam:PassRole"], Resource = "*" },
-      { Effect = "Allow", Action = ["iam:GetRole","iam:CreateRole","iam:DeleteRole","iam:PutRolePolicy","iam:DeleteRolePolicy"], Resource = "*" }
+      { Effect = "Allow", Action = ["iam:GetRole", "iam:CreateRole", "iam:DeleteRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy"], Resource = "*" }
     ]
   })
 }
@@ -165,10 +165,10 @@ resource "aws_codebuild_project" "build" {
   artifacts { type = "CODEPIPELINE" }
 
   environment {
-    compute_type                = "BUILD_GENERAL1_SMALL"
-    image                      = "aws/codebuild/standard:7.0"
-    type                       = "LINUX_CONTAINER"
-    privileged_mode            = false
+    compute_type    = "BUILD_GENERAL1_SMALL"
+    image           = "aws/codebuild/standard:7.0"
+    type            = "LINUX_CONTAINER"
+    privileged_mode = false
   }
 
   source {
@@ -234,9 +234,9 @@ resource "aws_iam_role" "codepipeline_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "codepipeline.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -250,7 +250,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
       # Artifacts bucket
       {
         Effect = "Allow",
-        Action = ["s3:GetObject","s3:PutObject","s3:ListBucket"],
+        Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
         Resource = [
           aws_s3_bucket.artifacts.arn,
           "${aws_s3_bucket.artifacts.arn}/*"
@@ -259,7 +259,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
       # Start CodeBuild
       {
         Effect = "Allow",
-        Action = ["codebuild:StartBuild","codebuild:BatchGetBuilds"],
+        Action = ["codebuild:StartBuild", "codebuild:BatchGetBuilds"],
         Resource = [
           aws_codebuild_project.build.arn,
           aws_codebuild_project.deploy_dev.arn
@@ -269,10 +269,10 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
       {
         Effect = "Allow",
         Action = [
-            "codeconnections:UseConnection",
-            "codestar-connections:UseConnection"
+          "codeconnections:UseConnection",
+          "codestar-connections:UseConnection"
         ],
-        Resource = aws_codestarconnections_connection.github.arn    
+        Resource = aws_codestarconnections_connection.github.arn
       }
     ]
   })
