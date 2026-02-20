@@ -46,7 +46,7 @@ resource "aws_sns_topic" "budget_alerts" {
 
 # Optional email subscription (nice for early testing)
 resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == null ? 0 : 1
+  count     = (var.alert_email != null && trim(var.alert_email) != "") ? 1 : 0
   topic_arn = aws_sns_topic.budget_alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
