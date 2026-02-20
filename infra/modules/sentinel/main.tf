@@ -58,9 +58,9 @@ resource "aws_iam_role" "lambda_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "lambda.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -82,8 +82,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
       },
       # Log to CloudWatch
       {
-        Effect = "Allow",
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
       }
     ]
@@ -138,10 +138,10 @@ resource "aws_budgets_budget" "monthly_cost" {
   dynamic "notification" {
     for_each = var.budget_thresholds_percent
     content {
-      comparison_operator        = "GREATER_THAN"
-      threshold                 = notification.value
-      threshold_type            = "PERCENTAGE"
-      notification_type         = "ACTUAL"
+      comparison_operator = "GREATER_THAN"
+      threshold           = notification.value
+      threshold_type      = "PERCENTAGE"
+      notification_type   = "ACTUAL"
 
       subscriber_sns_topic_arns = [aws_sns_topic.budget_alerts.arn]
     }
