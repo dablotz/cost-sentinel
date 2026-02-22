@@ -1,7 +1,7 @@
 import json
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 import boto3
 
@@ -13,10 +13,10 @@ WRITE_LATEST = os.environ.get("WRITE_LATEST", "true").lower() == "true"
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _to_jsonl(records: List[Dict[str, Any]]) -> bytes:
+def _to_jsonl(records: list[dict[str, Any]]) -> bytes:
     lines = [json.dumps(r, separators=(",", ":"), sort_keys=True) for r in records]
     return ("\n".join(lines) + "\n").encode("utf-8")
 
@@ -31,13 +31,13 @@ def _s3_put(key: str, body: bytes, content_type: str = "application/json") -> No
     )
 
 
-def _normalize_sns_event(event: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _normalize_sns_event(event: dict[str, Any]) -> list[dict[str, Any]]:
     """
     SNS -> Lambda event shape:
     event["Records"][i]["Sns"]["Message"] is usually JSON for Budgets notifications,
     but we treat it as opaque and store both raw + parsed if possible.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     received_at = _utc_now().isoformat()
 
     for rec in event.get("Records", []):

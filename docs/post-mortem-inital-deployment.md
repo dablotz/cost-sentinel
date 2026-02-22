@@ -1,7 +1,7 @@
 # Postmortem: Cost Sentinel Initial Deployment Pipeline Failures
 
-Date range: 2026-02-20  
-Environment: AWS (CodePipeline, CodeBuild, Terraform, Lambda, SNS, S3, Budgets)  
+Date range: 2026-02-20
+Environment: AWS (CodePipeline, CodeBuild, Terraform, Lambda, SNS, S3, Budgets)
 Impact: Delayed successful deployment of initial infrastructure and application components.
 
 ---
@@ -18,8 +18,8 @@ Final outcome: successful end-to-end deployment using fully automated AWS-native
 
 # Impact
 
-Duration: ~several pipeline iterations  
-Severity: Deployment blocked, no production impact  
+Duration: ~several pipeline iterations
+Severity: Deployment blocked, no production impact
 Scope: Infrastructure provisioning only (no customer-facing services)
 
 No runtime service degradation occurred because this was an initial deployment.

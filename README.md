@@ -66,7 +66,7 @@
 
 # CI/CD Pipeline
 
-Cost Sentinel uses AWS-native CI/CD tooling (CodePipeline, CodeBuild, CodeConnections) 
+Cost Sentinel uses AWS-native CI/CD tooling (CodePipeline, CodeBuild, CodeConnections)
 
 This keeps all compute, logging, and deployment activity contained within AWS for:
 
@@ -136,6 +136,18 @@ See:
 docs/runbook-ci.md
 
 For connection authorization and bootstrap instructions.
+
+## Development Setup
+
+Requirements:
+- Python 3.11+
+- Terraform 1.7.5+
+
+Setup:
+
+```bash
+./bootstrap-dev.sh
+```
 
 ---
 

@@ -1,6 +1,16 @@
 DIST_DIR=dist
 ZIP=$(DIST_DIR)/ingestor.zip
 
+.PHONY: lint
+lint:
+	pre-commit run --all-files
+
+.PHONY: format
+format:
+	terraform fmt -recursive
+	ruff format .
+	ruff check --fix .
+
 .PHONY: build
 build:
 	rm -rf $(DIST_DIR)

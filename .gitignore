@@ -1,5 +1,17 @@
+# Terraform
+**/.terraform/
 **/.terraform.lock.hcl
-**/.terraform
 **/terraform.tfstate
-**/terraform.tfstate.*
+**/terraform.tfstate.backup
+infra/envs/*/backend.hcl
+infra/envs/*/terraform.tfvars
+
+# Python
+.venv/
+__pycache__/
+
+# Build artifacts
+dist/
+
+# OS temporary files
 **/.DS_Store

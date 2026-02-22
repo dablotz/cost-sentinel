@@ -1,7 +1,7 @@
 # Milestone: Cost Sentinel Platform Foundation Complete
 
-Milestone ID: V1-Foundation  
-Date Completed: 2026-02-20  
+Milestone ID: V1-Foundation
+Date Completed: 2026-02-20
 Status: Complete
 
 ---
