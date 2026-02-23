@@ -141,13 +141,56 @@ For connection authorization and bootstrap instructions.
 
 Requirements:
 - Python 3.11+
-- Terraform 1.7.5+
+- Terraform 1.7.5
+- (Recommended) `tfenv` for Terraform version management
 
+### Terraform version enforcement
+
+Terraform does **not** automatically enforce `.terraform-version` on its own; a version manager like `tfenv` reads it.
+
+1) Install `tfenv` (macOS via Homebrew):
+
+```bash
+brew install tfenv
+tfenv install
+tfenv use
+terraform -version
+```
+
+## Development Setup continued
 Setup:
 
 ```bash
 ./bootstrap-dev.sh
 ```
+
+OR (from repo root)
+
+```bash
+make dev-init
+```
+
+## Testing
+Terraform-native tests live under:
+
+```
+infra/modules/sentinel/tests/basic
+infra/modules/sentinel/tests/nodashboard
+```
+
+Run them directly:
+
+```bash
+cd infra/modules/sentinel/tests/basic && terraform test
+cd ../nodashboard && terraform test
+```
+
+OR (from repo root)
+
+```bash
+make ci-test
+```
+Note: ci-test is the default target for make
 
 ---
 
