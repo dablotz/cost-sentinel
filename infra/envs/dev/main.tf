@@ -23,6 +23,7 @@ module "sentinel" {
   budget_thresholds_percent = var.budget_thresholds_percent
 
   dashboard_bucket_name = var.dashboard_bucket_name
+  dashboard_web_dir     = "../../../web"
 
   write_latest = true
 }

@@ -52,3 +52,14 @@ repos:
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
+
+  # ----------------------------
+  # Testing
+  # ----------------------------
+  - repo: local
+    hooks:
+      - id: terraform-test-sentinel
+        name: terraform test (sentinel module)
+        entry: bash -c 'cd infra/modules/sentinel/tests/basic && terraform test'
+        language: system
+        pass_filenames: false

@@ -10,3 +10,11 @@ output "dashboard_website_url" {
   value       = var.dashboard_bucket_name == null ? null : aws_s3_bucket_website_configuration.dashboard[0].website_endpoint
   description = "S3 static website endpoint for the dashboard."
 }
+
+output "dashboard_bucket_name" {
+  value = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? null : aws_s3_bucket.dashboard[0].bucket
+}
+
+output "dashboard_status_object" {
+  value = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? null : "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json"
+}

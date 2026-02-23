@@ -106,17 +106,13 @@ resource "aws_s3_bucket_policy" "dashboard_public_read" {
   })
 }
 
-locals {
-  repo_root = abspath("${path.root}/../../..")
-}
-
 resource "aws_s3_object" "dashboard_index" {
   count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "index.html"
-  source                 = "${local.repo_root}/${var.dashboard_web_dir}/index.html"
+  source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/index.html"
   content_type           = "text/html; charset=utf-8"
-  etag                   = filemd5("${local.repo_root}/${var.dashboard_web_dir}/index.html")
+  etag                   = filemd5("${abspath(path.root)}/${var.dashboard_web_dir}/index.html")
   server_side_encryption = "AES256"
   cache_control          = "no-store"
 }
@@ -125,9 +121,9 @@ resource "aws_s3_object" "dashboard_appjs" {
   count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "app.js"
-  source                 = "${local.repo_root}/${var.dashboard_web_dir}/app.js"
+  source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/app.js"
   content_type           = "application/javascript; charset=utf-8"
-  etag                   = filemd5("${local.repo_root}/${var.dashboard_web_dir}/app.js")
+  etag                   = filemd5("${abspath(path.root)}/${var.dashboard_web_dir}/app.js")
   server_side_encryption = "AES256"
   cache_control          = "no-store"
 }

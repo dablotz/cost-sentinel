@@ -13,6 +13,8 @@ phases:
       - cd infra/envs/dev
       - terraform init -backend=false
       - terraform validate
+      - cd infra/modules/sentinel/tests/basic
+      - terraform test
       - cd ../../..
   build:
     commands:
