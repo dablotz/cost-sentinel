@@ -39,6 +39,7 @@ phases:
         alert_email        = "${BUDGET_EMAIL}"
         monthly_budget_usd = ${MONTHLY_BUDGET_USD}
         budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
+        dashboard_bucket_name = "${DASHBOARD_BUCKET_NAME_DEV}"
         EOF
 
       # Create backend config

@@ -40,6 +40,102 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alerts" {
   }
 }
 
+resource "aws_s3_bucket" "dashboard" {
+  count         = var.dashboard_bucket_name == null ? 0 : 1
+  bucket        = var.dashboard_bucket_name
+  force_destroy = var.force_destroy_bucket
+}
+
+# NOTE: For a public static website, we must allow a public bucket policy.
+resource "aws_s3_bucket_public_access_block" "dashboard" {
+  count                   = var.dashboard_bucket_name == null ? 0 : 1
+  bucket                  = aws_s3_bucket.dashboard[0].id
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_versioning" "dashboard" {
+  count  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket = aws_s3_bucket.dashboard[0].id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
+  count  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket = aws_s3_bucket.dashboard[0].id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+
+resource "aws_s3_bucket_website_configuration" "dashboard" {
+  count  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket = aws_s3_bucket.dashboard[0].id
+
+  index_document { suffix = "index.html" }
+  error_document { key = "index.html" }
+}
+
+# Allow public reads of dashboard site assets + latest.json only
+resource "aws_s3_bucket_policy" "dashboard_public_read" {
+  count  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket = aws_s3_bucket.dashboard[0].id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid : "PublicReadDashboard",
+        Effect : "Allow",
+        Principal : "*",
+        Action : ["s3:GetObject"],
+        Resource : [
+          "${aws_s3_bucket.dashboard[0].arn}/index.html",
+          "${aws_s3_bucket.dashboard[0].arn}/app.js",
+          "${aws_s3_bucket.dashboard[0].arn}/latest.json"
+        ]
+      }
+    ]
+  })
+}
+
+locals {
+  repo_root = abspath("${path.root}/../../..")
+}
+
+resource "aws_s3_object" "dashboard_index" {
+  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket                 = aws_s3_bucket.dashboard[0].bucket
+  key                    = "index.html"
+  source                 = "${local.repo_root}/${var.dashboard_web_dir}/index.html"
+  content_type           = "text/html; charset=utf-8"
+  etag                   = filemd5("${local.repo_root}/${var.dashboard_web_dir}/index.html")
+  server_side_encryption = "AES256"
+  cache_control          = "no-store"
+}
+
+resource "aws_s3_object" "dashboard_appjs" {
+  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket                 = aws_s3_bucket.dashboard[0].bucket
+  key                    = "app.js"
+  source                 = "${local.repo_root}/${var.dashboard_web_dir}/app.js"
+  content_type           = "application/javascript; charset=utf-8"
+  etag                   = filemd5("${local.repo_root}/${var.dashboard_web_dir}/app.js")
+  server_side_encryption = "AES256"
+  cache_control          = "no-store"
+}
+
+resource "aws_s3_object" "dashboard_version" {
+  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  bucket                 = aws_s3_bucket.dashboard[0].bucket
+  key                    = "version.txt"
+  content                = "deployed_at=${timestamp()}\n"
+  content_type           = "text/plain; charset=utf-8"
+  server_side_encryption = "AES256"
+  cache_control          = "no-store"
+}
+
 resource "aws_sns_topic" "budget_alerts" {
   name = var.sns_topic_name
 }
@@ -71,13 +167,21 @@ resource "aws_iam_role_policy" "lambda_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      # Write alert artifacts
+      # Write to alerts bucket (private)
       {
         Effect = "Allow",
         Action = ["s3:PutObject", "s3:AbortMultipartUpload", "s3:ListBucket", "s3:GetBucketLocation"],
         Resource = [
           aws_s3_bucket.alerts.arn,
           "${aws_s3_bucket.alerts.arn}/*"
+        ]
+      },
+      # Write to dashboard bucket (public) if enabled
+      {
+        Effect = "Allow",
+        Action = ["s3:PutObject"],
+        Resource = var.dashboard_bucket_name == null ? [] : [
+          "${aws_s3_bucket.dashboard[0].arn}/latest.json"
         ]
       },
       # Log to CloudWatch
@@ -104,9 +208,10 @@ resource "aws_lambda_function" "ingestor" {
 
   environment {
     variables = {
-      ALERTS_BUCKET = aws_s3_bucket.alerts.bucket
-      KEY_PREFIX    = "alerts"
-      WRITE_LATEST  = var.write_latest ? "true" : "false"
+      ALERTS_BUCKET    = aws_s3_bucket.alerts.bucket
+      KEY_PREFIX       = "alerts"
+      WRITE_LATEST     = var.write_latest ? "true" : "false",
+      DASHBOARD_BUCKET = var.dashboard_bucket_name == null ? "" : aws_s3_bucket.dashboard[0].bucket
     }
   }
 }

@@ -217,6 +217,10 @@ resource "aws_codebuild_project" "deploy_dev" {
       name  = "BUDGET_THRESHOLDS"
       value = join(",", [for n in var.budget_thresholds_percent : tostring(n)])
     }
+    environment_variable {
+      name  = "DASHBOARD_BUCKET_NAME_DEV"
+      value = var.dashboard_bucket_name_dev
+    }
   }
 
   source {

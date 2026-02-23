@@ -48,3 +48,8 @@ variable "budget_thresholds_percent" {
   type    = list(number)
   default = [10, 50, 80, 100]
 }
+
+variable "dashboard_bucket_name_dev" {
+  type        = string
+  description = "Globally unique bucket name for the public dashboard site bucket (dev)."
+}

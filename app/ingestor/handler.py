@@ -10,6 +10,7 @@ s3 = boto3.client("s3")
 ALERTS_BUCKET = os.environ["ALERTS_BUCKET"]
 KEY_PREFIX = os.environ.get("KEY_PREFIX", "alerts")
 WRITE_LATEST = os.environ.get("WRITE_LATEST", "true").lower() == "true"
+DASHBOARD_BUCKET = os.environ.get("DASHBOARD_BUCKET", "").strip()
 
 
 def _utc_now() -> datetime:
@@ -75,5 +76,15 @@ def lambda_handler(event, context):
     if WRITE_LATEST and records:
         latest_key = f"{KEY_PREFIX}/latest.json"
         _s3_put(latest_key, json.dumps(records[-1], indent=2).encode("utf-8"))
+
+    # later, after records created:
+    if DASHBOARD_BUCKET and records:
+        s3.put_object(
+            Bucket=DASHBOARD_BUCKET,
+            Key="latest.json",
+            Body=json.dumps(records[-1], indent=2).encode("utf-8"),
+            ContentType="application/json",
+            ServerSideEncryption="AES256",
+        )
 
     return {"status": "ok", "written": len(records), "key": key}

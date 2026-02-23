@@ -54,3 +54,15 @@ variable "write_latest" {
   default     = true
   description = "Whether to also write alerts/latest.json for quick viewing."
 }
+
+variable "dashboard_bucket_name" {
+  type        = string
+  default     = null
+  description = "If set, create a public S3 bucket for the static dashboard and write latest.json to it."
+}
+
+variable "dashboard_web_dir" {
+  type        = string
+  default     = "web"
+  description = "Path (relative to the repo root) containing dashboard web assets."
+}
