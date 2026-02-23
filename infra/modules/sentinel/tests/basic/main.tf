@@ -20,5 +20,5 @@ module "sut" {
   # Dashboard enabled for this test (exercise those resources)
   dashboard_bucket_name = "example-cost-sentinel-dashboard-site-test"
   dashboard_web_dir     = "../../../../../web"
-  alert_email           = null
+  alert_email           = "testy.mctester@example.com"
 }
