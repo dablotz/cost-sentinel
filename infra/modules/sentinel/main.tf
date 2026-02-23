@@ -41,14 +41,14 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alerts" {
 }
 
 resource "aws_s3_bucket" "dashboard" {
-  count         = var.dashboard_bucket_name == null ? 0 : 1
+  count         = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket        = var.dashboard_bucket_name
   force_destroy = var.force_destroy_bucket
 }
 
 # NOTE: For a public static website, we must allow a public bucket policy.
 resource "aws_s3_bucket_public_access_block" "dashboard" {
-  count                   = var.dashboard_bucket_name == null ? 0 : 1
+  count                   = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                  = aws_s3_bucket.dashboard[0].id
   block_public_acls       = true
   ignore_public_acls      = true
@@ -82,6 +82,12 @@ resource "aws_s3_bucket_website_configuration" "dashboard" {
 resource "aws_s3_bucket_policy" "dashboard_public_read" {
   count  = var.dashboard_bucket_name == null ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
+
+  # Ensure BPA settings are applied before policy is put
+  depends_on = [
+    aws_s3_bucket_public_access_block.dashboard
+  ]
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
