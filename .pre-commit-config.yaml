@@ -63,3 +63,8 @@ repos:
         entry: bash -c 'cd infra/modules/sentinel/tests/basic && terraform test'
         language: system
         pass_filenames: false
+      - id: terraform-test-sentinel-nodashboard
+        name: terraform test (sentinel module no dashboard)
+        entry: bash -c 'cd infra/modules/sentinel/tests/nodashboard && terraform test'
+        language: system
+        pass_filenames: false

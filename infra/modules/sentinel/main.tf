@@ -107,7 +107,7 @@ resource "aws_s3_bucket_policy" "dashboard_public_read" {
 }
 
 resource "aws_s3_object" "dashboard_index" {
-  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "index.html"
   source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/index.html"
@@ -118,7 +118,7 @@ resource "aws_s3_object" "dashboard_index" {
 }
 
 resource "aws_s3_object" "dashboard_appjs" {
-  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "app.js"
   source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/app.js"
@@ -129,7 +129,7 @@ resource "aws_s3_object" "dashboard_appjs" {
 }
 
 resource "aws_s3_object" "dashboard_version" {
-  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "version.txt"
   content                = "deployed_at=${timestamp()}\n"
@@ -139,7 +139,7 @@ resource "aws_s3_object" "dashboard_version" {
 }
 
 resource "aws_s3_object" "dashboard_latest_placeholder" {
-  count = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
+  count = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
 
   bucket = aws_s3_bucket.dashboard[0].bucket
   key    = "latest.json"
