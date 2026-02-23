@@ -41,14 +41,14 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alerts" {
 }
 
 resource "aws_s3_bucket" "dashboard" {
-  count         = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count         = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket        = var.dashboard_bucket_name
   force_destroy = var.force_destroy_bucket
 }
 
 # NOTE: For a public static website, we must allow a public bucket policy.
 resource "aws_s3_bucket_public_access_block" "dashboard" {
-  count                   = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count                   = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket                  = aws_s3_bucket.dashboard[0].id
   block_public_acls       = true
   ignore_public_acls      = true
@@ -57,13 +57,13 @@ resource "aws_s3_bucket_public_access_block" "dashboard" {
 }
 
 resource "aws_s3_bucket_versioning" "dashboard" {
-  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
   versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
   rule {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
@@ -71,7 +71,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
 }
 
 resource "aws_s3_bucket_website_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
 
   index_document { suffix = "index.html" }
@@ -80,7 +80,7 @@ resource "aws_s3_bucket_website_configuration" "dashboard" {
 
 # Allow public reads of dashboard site assets + latest.json only
 resource "aws_s3_bucket_policy" "dashboard_public_read" {
-  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
 
   # Ensure BPA settings are applied before policy is put
@@ -107,7 +107,7 @@ resource "aws_s3_bucket_policy" "dashboard_public_read" {
 }
 
 resource "aws_s3_object" "dashboard_index" {
-  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "index.html"
   source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/index.html"
@@ -118,7 +118,7 @@ resource "aws_s3_object" "dashboard_index" {
 }
 
 resource "aws_s3_object" "dashboard_appjs" {
-  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "app.js"
   source                 = "${abspath(path.root)}/${var.dashboard_web_dir}/app.js"
@@ -129,7 +129,7 @@ resource "aws_s3_object" "dashboard_appjs" {
 }
 
 resource "aws_s3_object" "dashboard_version" {
-  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "version.txt"
   content                = "deployed_at=${timestamp()}\n"
@@ -139,7 +139,7 @@ resource "aws_s3_object" "dashboard_version" {
 }
 
 resource "aws_s3_object" "dashboard_latest_placeholder" {
-  count = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name)) == "" ? 0 : 1
+  count = var.dashboard_bucket_name == null || trimspace(coalesce(var.dashboard_bucket_name, "")) == "" ? 0 : 1
 
   bucket = aws_s3_bucket.dashboard[0].bucket
   key    = "latest.json"
@@ -166,7 +166,7 @@ resource "aws_sns_topic" "budget_alerts" {
 
 # Optional email subscription (nice for early testing)
 resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == null || trimspace(coalesce(var.alert_email)) == "" ? 0 : 1
+  count     = var.alert_email == null || trimspace(coalesce(var.alert_email, "")) == "" ? 0 : 1
   topic_arn = aws_sns_topic.budget_alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
