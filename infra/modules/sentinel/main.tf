@@ -57,13 +57,13 @@ resource "aws_s3_bucket_public_access_block" "dashboard" {
 }
 
 resource "aws_s3_bucket_versioning" "dashboard" {
-  count  = var.dashboard_bucket_name == null ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
   versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
   rule {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
@@ -71,7 +71,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
 }
 
 resource "aws_s3_bucket_website_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
 
   index_document { suffix = "index.html" }
@@ -80,7 +80,7 @@ resource "aws_s3_bucket_website_configuration" "dashboard" {
 
 # Allow public reads of dashboard site assets + latest.json only
 resource "aws_s3_bucket_policy" "dashboard_public_read" {
-  count  = var.dashboard_bucket_name == null ? 0 : 1
+  count  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket = aws_s3_bucket.dashboard[0].id
 
   # Ensure BPA settings are applied before policy is put
@@ -111,7 +111,7 @@ locals {
 }
 
 resource "aws_s3_object" "dashboard_index" {
-  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "index.html"
   source                 = "${local.repo_root}/${var.dashboard_web_dir}/index.html"
@@ -122,7 +122,7 @@ resource "aws_s3_object" "dashboard_index" {
 }
 
 resource "aws_s3_object" "dashboard_appjs" {
-  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "app.js"
   source                 = "${local.repo_root}/${var.dashboard_web_dir}/app.js"
@@ -133,13 +133,35 @@ resource "aws_s3_object" "dashboard_appjs" {
 }
 
 resource "aws_s3_object" "dashboard_version" {
-  count                  = var.dashboard_bucket_name == null ? 0 : 1
+  count                  = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "version.txt"
   content                = "deployed_at=${timestamp()}\n"
   content_type           = "text/plain; charset=utf-8"
   server_side_encryption = "AES256"
   cache_control          = "no-store"
+}
+
+resource "aws_s3_object" "dashboard_latest_placeholder" {
+  count = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? 0 : 1
+
+  bucket = aws_s3_bucket.dashboard[0].bucket
+  key    = "latest.json"
+
+  content_type = "application/json; charset=utf-8"
+  content = jsonencode({
+    status  = "no_alerts_yet"
+    message = "No alerts have been ingested yet."
+    updated = timestamp()
+  })
+
+  server_side_encryption = "AES256"
+  cache_control          = "no-store"
+
+  # Optional: avoid updating on every apply due to timestamp()
+  lifecycle {
+    ignore_changes = [content]
+  }
 }
 
 resource "aws_sns_topic" "budget_alerts" {
