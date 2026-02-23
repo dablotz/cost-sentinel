@@ -13,9 +13,14 @@ phases:
       - cd infra/envs/dev
       - terraform init -backend=false
       - terraform validate
-      - cd infra/modules/sentinel/tests/basic
-      - terraform test
       - cd ../../..
+      - cd infra/modules/sentinel/tests/basic
+      - terraform init -backend=false
+      - terraform test
+      - cd ../nodashboard
+      - terraform init -backend=false
+      - terraform test
+      - cd ../../../../..
   build:
     commands:
       - mkdir -p dist
