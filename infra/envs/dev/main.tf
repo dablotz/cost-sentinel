@@ -22,5 +22,7 @@ module "sentinel" {
   monthly_budget_usd        = var.monthly_budget_usd
   budget_thresholds_percent = var.budget_thresholds_percent
 
+  dashboard_bucket_name = var.dashboard_bucket_name
+
   write_latest = true
 }

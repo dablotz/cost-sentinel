@@ -142,7 +142,7 @@ resource "aws_sns_topic" "budget_alerts" {
 
 # Optional email subscription (nice for early testing)
 resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == null || trim(var.alert_email, " ") == "" ? 0 : 1
+  count     = var.alert_email == null || length(trimspace(var.alert_email)) == 0 ? 0 : 1
   topic_arn = aws_sns_topic.budget_alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
@@ -164,35 +164,36 @@ resource "aws_iam_role" "lambda_role" {
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "${var.name_prefix}-lambda-policy"
   role = aws_iam_role.lambda_role.id
+
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [
-      # Write to alerts bucket (private)
-      {
-        Effect = "Allow",
-        Action = ["s3:PutObject", "s3:AbortMultipartUpload", "s3:ListBucket", "s3:GetBucketLocation"],
-        Resource = [
-          aws_s3_bucket.alerts.arn,
-          "${aws_s3_bucket.alerts.arn}/*"
-        ]
-      },
-      # Write to dashboard bucket (public) if enabled
-      {
-        Effect = "Allow",
-        Action = ["s3:PutObject"],
-        Resource = var.dashboard_bucket_name == null ? [] : [
-          "${aws_s3_bucket.dashboard[0].arn}/latest.json"
-        ]
-      },
-      # Log to CloudWatch
-      {
-        Effect   = "Allow",
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Resource = "*"
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow",
+          Action = ["s3:PutObject", "s3:AbortMultipartUpload", "s3:ListBucket", "s3:GetBucketLocation"],
+          Resource = [
+            aws_s3_bucket.alerts.arn,
+            "${aws_s3_bucket.alerts.arn}/*"
+          ]
+        },
+        {
+          Effect   = "Allow",
+          Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+          Resource = "*"
+        }
+      ],
+      (var.dashboard_bucket_name != null && length(trimspace(var.dashboard_bucket_name)) > 0) ? [
+        {
+          Effect   = "Allow",
+          Action   = ["s3:PutObject"],
+          Resource = ["${aws_s3_bucket.dashboard[0].arn}/latest.json"]
+        }
+      ] : []
+    )
   })
 }
+
 
 # Lambda (zip is built by your workflow and referenced here)
 resource "aws_lambda_function" "ingestor" {
