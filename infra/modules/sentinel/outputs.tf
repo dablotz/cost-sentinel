@@ -12,9 +12,9 @@ output "dashboard_website_url" {
 }
 
 output "dashboard_bucket_name" {
-  value = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? null : aws_s3_bucket.dashboard[0].bucket
+  value = local.dashboard_enabled ? null : aws_s3_bucket.dashboard[0].bucket
 }
 
 output "dashboard_status_object" {
-  value = var.dashboard_bucket_name == null || trimspace(var.dashboard_bucket_name) == "" ? null : "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json"
+  value = local.dashboard_enabled ? null : "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json"
 }

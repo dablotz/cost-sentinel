@@ -23,6 +23,7 @@ help:
 	@echo "  dev-init     Create venv, install dev deps, install pre-commit hooks"
 	@echo "  dev-update   Update dev deps"
 	@echo "  lint         Run pre-commit on all files"
+	@echo "  ci-test      Runs CI testing after cleaning .terraform directory"
 	@echo "  build        Package Lambda into $(LAMBDA_ZIP)"
 	@echo "  tf-init      Terraform init in infra/envs/$(TF_ENV)"
 	@echo "  tf-fmt       Terraform fmt (repo)"
@@ -58,6 +59,14 @@ dev-update: $(VENV_DIR)/bin/activate
 .PHONY: lint
 lint: $(VENV_DIR)/bin/activate
 	@source $(VENV_DIR)/bin/activate && pre-commit run --all-files
+
+.PHONY: ci-test
+ci-test:
+	rm -rf infra/modules/sentinel/tests/**/.terraform \
+	       infra/modules/sentinel/tests/**/.terraform.lock.hcl
+	cd infra/modules/sentinel/tests/basic && terraform init -backend=false && terraform test
+	cd infra/modules/sentinel/tests/nodashboard && terraform init -backend=false && terraform test
+
 
 # ----------------------------
 # Build Lambda artifact

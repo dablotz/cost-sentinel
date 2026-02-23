@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = "~> 1.7.5"
   required_providers {
     aws = {
       source = "hashicorp/aws"
@@ -18,6 +18,7 @@ module "sut" {
   lambda_zip_path           = "${path.module}/fixtures/ingestor.zip"
 
   # Dashboard disabled for this test
-  dashboard_bucket_name = null
+  dashboard_bucket_name = "example-dashboard-bucket-test"
   alert_email           = "testy.mctester@example.com"
+  dashboard_web_dir     = "../../../../../web"
 }

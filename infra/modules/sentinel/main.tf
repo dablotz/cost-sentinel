@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = "~> 1.7.5"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -219,7 +219,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
           Resource = "*"
         }
       ],
-      (var.dashboard_bucket_name != null && length(trimspace(var.dashboard_bucket_name)) > 0) ? [
+      (local.dashboard_enabled) ? [
         {
           Effect   = "Allow",
           Action   = ["s3:PutObject"],
