@@ -17,8 +17,7 @@ module "sut" {
   budget_thresholds_percent = [50, 80, 100]
   lambda_zip_path           = "${path.module}/fixtures/ingestor.zip"
 
-  # Dashboard enabled for this test (exercise those resources)
+  # Dashboard disabled for this test
   dashboard_bucket_name = null
-  dashboard_web_dir     = "../../../../../web"
-  alert_email           = null
+  alert_email           = "testy.mctester@example.com"
 }
