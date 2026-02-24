@@ -252,7 +252,7 @@ resource "aws_iam_role_policy" "codebuild_integration_policy" {
       {
         Effect   = "Allow",
         Action   = ["lambda:InvokeFunction"],
-        Resource = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:cost-sentinel-dev-ingestor"
+        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:cost-sentinel-dev-ingestor"
       },
 
       # Read the dashboard object
