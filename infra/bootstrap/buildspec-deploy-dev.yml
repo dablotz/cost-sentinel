@@ -30,6 +30,8 @@ phases:
       - ls -la infra/envs/dev/dist/ingestor.zip
 
       - cd infra/envs/dev
+      - REPO_ROOT="$CODEBUILD_SRC_DIR"
+      - echo "REPO_ROOT=$REPO_ROOT"
 
       # Create terraform.tfvars
       - |
@@ -57,7 +59,8 @@ phases:
       # Plan and apply
       - terraform plan -out=tfplan
       - terraform apply -auto-approve tfplan
-      - terraform output -json > ../../../terraform-outputs.json
+      - terraform output -json > "$REPO_ROOT/terraform-outputs.json"
+      - ls -la "$REPO_ROOT/terraform-outputs.json"
 
 artifacts:
   files:

@@ -12,7 +12,7 @@ phases:
       - ls -la
 
       # Find terraform outputs artifact (it may be in the secondary artifact directory)
-      - export TF_OUTPUTS_FILE="$(find . -maxdepth 4 -name terraform-outputs.json -print -quit)"
+      - export TF_OUTPUTS_FILE="$(find . -maxdepth 10 -name terraform-outputs.json -print -quit)"
       - echo "TF_OUTPUTS_FILE=$TF_OUTPUTS_FILE"
       - test -n "$TF_OUTPUTS_FILE"
       - cat "$TF_OUTPUTS_FILE"
