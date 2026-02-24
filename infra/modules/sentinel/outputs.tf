@@ -12,9 +12,15 @@ output "dashboard_website_url" {
 }
 
 output "dashboard_bucket_name" {
-  value = local.dashboard_enabled ? null : aws_s3_bucket.dashboard[0].bucket
+  value       = local.dashboard_enabled ? null : aws_s3_bucket.dashboard[0].bucket
+  description = "Dashboard bucket name (if enabled)."
 }
 
 output "dashboard_status_object" {
   value = local.dashboard_enabled ? null : "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json"
+}
+
+output "lambda_function_name" {
+  value       = aws_lambda_function.ingestor.function_name
+  description = "Ingestor Lambda function name."
 }

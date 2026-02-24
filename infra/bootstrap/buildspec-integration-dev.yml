@@ -1,0 +1,27 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+  build:
+    commands:
+      - test -f terraform-outputs.json
+      - echo "=== terraform-outputs.json ==="
+      - cat terraform-outputs.json
+
+      # Pull values from terraform outputs (preferred)
+      - export AWS_REGION="${AWS_REGION:-us-east-1}"
+
+      - export LAMBDA_FUNCTION_NAME="$(python3 -c 'import json;print(json.load(open("terraform-outputs.json"))["lambda_function_name"]["value"])' 2>/dev/null || true)"
+      - export DASHBOARD_BUCKET_NAME="$(python3 -c 'import json;print(json.load(open("terraform-outputs.json"))["dashboard_bucket_name"]["value"])')"
+
+      # Fallback if lambda output isn't present yet
+      - if [ -z "${LAMBDA_FUNCTION_NAME}" ] || [ "${LAMBDA_FUNCTION_NAME}" = "None" ]; then export LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME_FALLBACK:-cost-sentinel-dev-ingestor}"; fi
+
+      - echo "AWS_REGION=${AWS_REGION}"
+      - echo "LAMBDA_FUNCTION_NAME=${LAMBDA_FUNCTION_NAME}"
+      - echo "DASHBOARD_BUCKET_NAME=${DASHBOARD_BUCKET_NAME}"
+
+      - chmod +x scripts/integration_test_lambda.sh
+      - ./scripts/integration_test_lambda.sh

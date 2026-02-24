@@ -5,7 +5,10 @@ from typing import Any
 
 import boto3
 
-s3 = boto3.client("s3")
+
+def _s3_client():
+    return boto3.client("s3")
+
 
 ALERTS_BUCKET = os.environ["ALERTS_BUCKET"]
 KEY_PREFIX = os.environ.get("KEY_PREFIX", "alerts")
@@ -22,9 +25,15 @@ def _to_jsonl(records: list[dict[str, Any]]) -> bytes:
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
-def _s3_put(key: str, body: bytes, content_type: str = "application/json") -> None:
-    s3.put_object(
-        Bucket=ALERTS_BUCKET,
+def _s3_put(
+    s3_client,
+    bucket: str,
+    key: str,
+    body: bytes,
+    content_type: str = "application/json",
+) -> None:
+    s3_client.put_object(
+        Bucket=bucket,
         Key=key,
         Body=body,
         ContentType=content_type,
@@ -66,25 +75,37 @@ def _normalize_sns_event(event: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def lambda_handler(event, context):
+def lambda_handler(event, context, s3_client=None):
+    s3_client = s3_client or _s3_client()
+
     records = _normalize_sns_event(event)
 
     now = _utc_now()
     key = f"{KEY_PREFIX}/{now:%Y/%m/%d}/alerts.jsonl"
-    _s3_put(key, _to_jsonl(records), content_type="application/jsonl")
+    _s3_put(
+        s3_client,
+        ALERTS_BUCKET,
+        key,
+        _to_jsonl(records),
+        content_type="application/jsonl",
+    )
 
     if WRITE_LATEST and records:
         latest_key = f"{KEY_PREFIX}/latest.json"
-        _s3_put(latest_key, json.dumps(records[-1], indent=2).encode("utf-8"))
+        _s3_put(
+            s3_client,
+            ALERTS_BUCKET,
+            latest_key,
+            json.dumps(records[-1], indent=2).encode("utf-8"),
+        )
 
     # later, after records created:
     if DASHBOARD_BUCKET and records:
-        s3.put_object(
-            Bucket=DASHBOARD_BUCKET,
-            Key="latest.json",
-            Body=json.dumps(records[-1], indent=2).encode("utf-8"),
-            ContentType="application/json",
-            ServerSideEncryption="AES256",
+        _s3_put(
+            s3_client,
+            DASHBOARD_BUCKET,
+            "latest.json",
+            json.dumps(records[-1], indent=2).encode("utf-8"),
         )
 
     return {"status": "ok", "written": len(records), "key": key}

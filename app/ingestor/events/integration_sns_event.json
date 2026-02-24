@@ -1,0 +1,10 @@
+{
+  "Records": [
+    {
+      "Sns": {
+        "Message": "{\"integration_test\":true,\"test_run_id\":\"REPLACE_AT_RUNTIME\",\"budgetName\":\"IntegrationTestBudget\",\"threshold\":80,\"actualCost\":12.34,\"budgetLimit\":15.00,\"timestamp\":\"2026-02-24T00:00:00Z\"}",
+        "TopicArn": "arn:aws:sns:us-east-1:000000000000:integration-test"
+      }
+    }
+  ]
+}

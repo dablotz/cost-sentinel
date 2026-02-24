@@ -57,3 +57,10 @@ phases:
       # Plan and apply
       - terraform plan -out=tfplan
       - terraform apply -auto-approve tfplan
+      - terraform output -json > terraform-outputs.json
+      - echo "=== terraform-outputs.json ==="
+      - cat terraform-outputs.json
+
+artifacts:
+  files:
+    - terraform-outputs.json

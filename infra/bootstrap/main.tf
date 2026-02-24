@@ -91,8 +91,9 @@ resource "aws_codestarconnections_connection" "github" {
 # ----------------------------
 # IAM: CodeBuild roles
 # ----------------------------
-resource "aws_iam_role" "codebuild_role" {
-  name = "${var.name_prefix}-codebuild-role"
+resource "aws_iam_role" "codebuild_build_role" {
+  name = "${var.name_prefix}-codebuild-build-role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -103,9 +104,10 @@ resource "aws_iam_role" "codebuild_role" {
   })
 }
 
-resource "aws_iam_role_policy" "codebuild_policy" {
-  name = "${var.name_prefix}-codebuild-policy"
-  role = aws_iam_role.codebuild_role.id
+resource "aws_iam_role_policy" "codebuild_build_policy" {
+  name = "${var.name_prefix}-codebuild-build-policy"
+  role = aws_iam_role.codebuild_build_role.id
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -115,7 +117,47 @@ resource "aws_iam_role_policy" "codebuild_policy" {
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
       },
-      # Pipeline artifacts bucket access
+      # Pipeline artifact bucket (read inputs, write build output)
+      {
+        Effect = "Allow",
+        Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "codebuild_deploy_role" {
+  name = "${var.name_prefix}-codebuild-deploy-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "codebuild.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "codebuild_deploy_policy" {
+  name = "${var.name_prefix}-codebuild-deploy-policy"
+  role = aws_iam_role.codebuild_deploy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Logs
+      {
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Resource = "*"
+      },
+
+      # Pipeline artifacts bucket (read build output, write deploy output like terraform-outputs.json)
       {
         Effect = "Allow",
         Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
@@ -124,7 +166,8 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "${aws_s3_bucket.artifacts.arn}/*"
         ]
       },
-      # Terraform state bucket + lock table
+
+      # Terraform remote state bucket
       {
         Effect = "Allow",
         Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:GetBucketLocation"],
@@ -133,23 +176,91 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "${aws_s3_bucket.tfstate.arn}/*"
         ]
       },
+
+      # DynamoDB lock table
       {
         Effect   = "Allow",
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:DescribeTable"],
         Resource = aws_dynamodb_table.tflock.arn
       },
 
-      # ---- App resources managed by Terraform (broad-ish but contained to your account) ----
-      # Budgets APIs can be awkward to narrowly scope; document this in your repo.
+      # App resources managed by Terraform
+      # (You can narrow these later; keep functional first.)
       { Effect = "Allow", Action = ["budgets:*"], Resource = "*" },
-
-      # SNS / Lambda / S3 for app resources
       { Effect = "Allow", Action = ["sns:*"], Resource = "*" },
       { Effect = "Allow", Action = ["lambda:*"], Resource = "*" },
       { Effect = "Allow", Action = ["s3:*"], Resource = "*" },
 
-      # IAM PassRole (needed for Lambda execution role that Terraform creates)
-      { Effect = "Allow", Action = ["iam:PassRole", "iam:GetRole", "iam:CreateRole", "iam:DeleteRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions"], Resource = "*" }
+      # IAM needed because Terraform creates roles/policies for Lambda execution.
+      { Effect = "Allow", Action = [
+        "iam:PassRole",
+        "iam:GetRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "codebuild_integration_role" {
+  name = "${var.name_prefix}-codebuild-integration-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "codebuild.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "codebuild_integration_policy" {
+  name = "${var.name_prefix}-codebuild-integration-policy"
+  role = aws_iam_role.codebuild_integration_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Logs
+      {
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Resource = "*"
+      },
+
+      # Pipeline artifacts bucket: read terraform-outputs.json + script from artifact
+      {
+        Effect = "Allow",
+        Action = ["s3:GetObject", "s3:ListBucket"],
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/*"
+        ]
+      },
+
+      # Invoke the ingestor Lambda
+      {
+        Effect   = "Allow",
+        Action   = ["lambda:InvokeFunction"],
+        Resource = "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:cost-sentinel-dev-ingestor"
+      },
+
+      # Read the dashboard object
+      {
+        Effect   = "Allow",
+        Action   = ["s3:GetObject"],
+        Resource = "arn:aws:s3:::${var.dashboard_bucket_name_dev}/latest.json"
+      }
     ]
   })
 }
@@ -159,7 +270,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 # ----------------------------
 resource "aws_codebuild_project" "build" {
   name         = "${var.name_prefix}-build"
-  service_role = aws_iam_role.codebuild_role.arn
+  service_role = aws_iam_role.codebuild_build_role.arn
 
   artifacts { type = "CODEPIPELINE" }
 
@@ -178,7 +289,7 @@ resource "aws_codebuild_project" "build" {
 
 resource "aws_codebuild_project" "deploy_dev" {
   name         = "${var.name_prefix}-deploy-dev"
-  service_role = aws_iam_role.codebuild_role.arn
+  service_role = aws_iam_role.codebuild_deploy_role.arn
 
   artifacts { type = "CODEPIPELINE" }
 
@@ -228,6 +339,25 @@ resource "aws_codebuild_project" "deploy_dev" {
     buildspec = "infra/bootstrap/buildspec-deploy-dev.yml"
   }
 }
+
+resource "aws_codebuild_project" "integration_dev" {
+  name         = "${var.name_prefix}-integration-dev"
+  service_role = aws_iam_role.codebuild_integration_role.arn
+
+  artifacts { type = "CODEPIPELINE" }
+
+  environment {
+    compute_type = "BUILD_GENERAL1_SMALL"
+    image        = "aws/codebuild/standard:7.0"
+    type         = "LINUX_CONTAINER"
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "infra/bootstrap/buildspec-integration-dev.yml"
+  }
+}
+
 
 # ----------------------------
 # IAM: CodePipeline role
@@ -330,14 +460,30 @@ resource "aws_codepipeline" "pipeline" {
   stage {
     name = "DeployDev"
     action {
-      name            = "TerraformApplyDev"
+      name             = "TerraformApplyDev"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      version          = "1"
+      input_artifacts  = ["build_output"]
+      output_artifacts = ["deploy_dev_output"]
+      configuration = {
+        ProjectName = aws_codebuild_project.deploy_dev.name
+      }
+    }
+  }
+
+  stage {
+    name = "IntegrationDev"
+    action {
+      name            = "IntegrationTestsDev"
       category        = "Build"
       owner           = "AWS"
       provider        = "CodeBuild"
       version         = "1"
-      input_artifacts = ["build_output"]
+      input_artifacts = ["deploy_dev_output"]
       configuration = {
-        ProjectName = aws_codebuild_project.deploy_dev.name
+        ProjectName = aws_codebuild_project.integration_dev.name
       }
     }
   }

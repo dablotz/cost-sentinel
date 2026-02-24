@@ -27,6 +27,8 @@ TF_DIR := infra/envs/$(TF_ENV)
 TERRAFORM_VERSION := 1.7.5
 CODEBUILD_IMAGE   := public.ecr.aws/codebuild/standard:7.0
 
+.DEFAULT_GOAL := ci-test
+
 .PHONY: help
 help:
 	@echo "Targets:"
@@ -79,35 +81,6 @@ check-terraform-version:
 lint: $(VENV_DIR)/bin/activate
 	@source $(VENV_DIR)/bin/activate && pre-commit run --all-files
 
-.PHONY: ci-test
-ci-test:
-	rm -rf infra/modules/sentinel/tests/**/.terraform \
-	       infra/modules/sentinel/tests/**/.terraform.lock.hcl
-	cd infra/modules/sentinel/tests/basic && terraform init -backend=false && terraform test
-	cd infra/modules/sentinel/tests/nodashboard && terraform init -backend=false && terraform test
-
-.PHONY: ci-simulate
-ci-simulate:
-	@echo "Running CI simulation in Docker..."
-	docker run --rm -it \
-		-v "$$(pwd)":/workspace \
-		-w /workspace \
-		$(CODEBUILD_IMAGE) \
-		bash -lc '\
-			set -e; \
-			echo "Installing Terraform $(TERRAFORM_VERSION)..."; \
-			curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip; \
-			unzip -o /tmp/terraform.zip -d /usr/local/bin; \
-			terraform -version; \
-			export TF_IN_AUTOMATION=true; \
-			echo "Running clean..."; \
-			find . -type d -name ".terraform" -prune -exec rm -rf {} +; \
-			find . -type f -name ".terraform.lock.hcl" -delete; \
-			echo "Running tests..."; \
-			cd infra/modules/sentinel/tests/basic && terraform init -backend=false && terraform test; \
-			cd ../nodashboard && terraform init -backend=false && terraform test; \
-			echo "CI simulation complete."; \
-		'
 
 .PHONY: clean
 clean:
@@ -127,6 +100,7 @@ build:
 	mkdir -p $(DIST_DIR)
 	cd app/ingestor && zip -r ../../$(LAMBDA_ZIP) handler.py requirements.txt >/dev/null
 	@echo "Built: $(LAMBDA_ZIP)"
+
 
 # ----------------------------
 # Terraform helpers
@@ -159,3 +133,43 @@ tf-destroy:
 .PHONY: check
 check: lint tf-validate
 	@echo "All checks passed."
+
+
+# ----------------------------
+# Testing targets
+# ----------------------------
+.PHONY: ci-test
+ci-test:
+	rm -rf infra/modules/sentinel/tests/**/.terraform \
+	       infra/modules/sentinel/tests/**/.terraform.lock.hcl
+	cd infra/modules/sentinel/tests/basic && terraform init -backend=false && terraform test
+	cd infra/modules/sentinel/tests/nodashboard && terraform init -backend=false && terraform test
+
+.PHONY: ci-simulate
+ci-simulate:
+	@echo "Running CI simulation in Docker..."
+	docker run --rm -it \
+		-v "$$(pwd)":/workspace \
+		-w /workspace \
+		$(CODEBUILD_IMAGE) \
+		bash -lc '\
+			set -e; \
+			echo "Installing Terraform $(TERRAFORM_VERSION)..."; \
+			curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip; \
+			unzip -o /tmp/terraform.zip -d /usr/local/bin; \
+			terraform -version; \
+			export TF_IN_AUTOMATION=true; \
+			echo "Running clean..."; \
+			find . -type d -name ".terraform" -prune -exec rm -rf {} +; \
+			find . -type f -name ".terraform.lock.hcl" -delete; \
+			echo "Running tests..."; \
+			cd infra/modules/sentinel/tests/basic && terraform init -backend=false && terraform test; \
+			cd ../nodashboard && terraform init -backend=false && terraform test; \
+			echo "CI simulation complete."; \
+		'
+
+.PHONY: integration-test
+integration-test:
+	@AWS_REGION=$${AWS_REGION:-us-east-1} \
+	LAMBDA_FUNCTION_NAME=$${LAMBDA_FUNCTION_NAME:-cost-sentinel-dev-ingestor} \
+	./scripts/integration_test_lambda.sh

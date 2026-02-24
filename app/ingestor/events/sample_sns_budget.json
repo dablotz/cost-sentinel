@@ -1,0 +1,9 @@
+{
+  "Records": [
+    {
+      "Sns": {
+        "Message": "{\"budgetName\":\"MonthlyBudget\",\"threshold\":80,\"actualCost\":12.34,\"budgetLimit\":15.0,\"timestamp\":\"2026-02-23T12:00:00Z\"}"
+      }
+    }
+  ]
+}
