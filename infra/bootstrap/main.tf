@@ -492,7 +492,7 @@ resource "aws_codepipeline" "pipeline" {
       owner           = "AWS"
       provider        = "CodeBuild"
       version         = "1"
-      input_artifacts = ["deploy_dev_output"]
+      input_artifacts = ["build_output", "deploy_dev_output"]
       configuration = {
         ProjectName = aws_codebuild_project.integration_dev.name
       }

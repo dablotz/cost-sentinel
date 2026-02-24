@@ -32,3 +32,4 @@ artifacts:
     - infra/**/*
     - app/**/*
     - web/**/*
+    - scripts/**
