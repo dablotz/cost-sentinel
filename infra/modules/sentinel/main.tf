@@ -11,6 +11,10 @@ terraform {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+data "aws_kms_alias" "lambda" {
+  name = "alias/aws/lambda"
+}
+
 locals {
   dashboard_web_assets = local.dashboard_enabled ? {
     "index.html" = {
@@ -217,7 +221,16 @@ resource "aws_iam_role_policy" "lambda_policy" {
           Effect   = "Allow",
           Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
           Resource = "*"
-        }
+        },
+        # Allow Lambda to decrypt its environment variables (AWS-managed key)
+        {
+          Effect = "Allow",
+          Action = [
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ],
+          Resource = data.aws_kms_alias.lambda.target_key_arn
+        },
       ],
       (local.dashboard_enabled) ? [
         {

@@ -172,4 +172,5 @@ ci-simulate:
 integration-test:
 	@AWS_REGION=$${AWS_REGION:-us-east-1} \
 	LAMBDA_FUNCTION_NAME=$${LAMBDA_FUNCTION_NAME:-cost-sentinel-dev-ingestor} \
+	DASHBOARD_BUCKET_NAME=$${DASHBOARD_BUCKET_NAME}
 	./scripts/integration_test_lambda.sh
