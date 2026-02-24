@@ -6,10 +6,6 @@ phases:
       python: 3.11
   build:
     commands:
-      - test -f terraform-outputs.json
-      - echo "=== terraform-outputs.json ==="
-      - cat terraform-outputs.json
-
       # Pull values from terraform outputs (preferred)
       - export AWS_REGION="${AWS_REGION:-us-east-1}"
 
