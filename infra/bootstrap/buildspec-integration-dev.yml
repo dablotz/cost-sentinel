@@ -4,13 +4,23 @@ phases:
   install:
     runtime-versions:
       python: 3.11
+
   build:
     commands:
-      # Pull values from terraform outputs (preferred)
+      - echo "CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR"
+      - pwd
+      - ls -la
+
+      # Find terraform outputs artifact (it may be in the secondary artifact directory)
+      - export TF_OUTPUTS_FILE="$(find . -maxdepth 4 -name terraform-outputs.json -print -quit)"
+      - echo "TF_OUTPUTS_FILE=$TF_OUTPUTS_FILE"
+      - test -n "$TF_OUTPUTS_FILE"
+      - cat "$TF_OUTPUTS_FILE"
+
       - export AWS_REGION="${AWS_REGION:-us-east-1}"
 
-      - export LAMBDA_FUNCTION_NAME="$(python3 -c 'import json;print(json.load(open("terraform-outputs.json"))["lambda_function_name"]["value"])' 2>/dev/null || true)"
-      - export DASHBOARD_BUCKET_NAME="$(python3 -c 'import json;print(json.load(open("terraform-outputs.json"))["dashboard_bucket_name"]["value"])')"
+      - export LAMBDA_FUNCTION_NAME="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["lambda_function_name"]["value"])' "$TF_OUTPUTS_FILE" 2>/dev/null || true)"
+      - export DASHBOARD_BUCKET_NAME="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["dashboard_bucket_name"]["value"])' "$TF_OUTPUTS_FILE")"
 
       # Fallback if lambda output isn't present yet
       - if [ -z "${LAMBDA_FUNCTION_NAME}" ] || [ "${LAMBDA_FUNCTION_NAME}" = "None" ]; then export LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME_FALLBACK:-cost-sentinel-dev-ingestor}"; fi
