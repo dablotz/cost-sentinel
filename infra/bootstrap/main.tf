@@ -494,7 +494,8 @@ resource "aws_codepipeline" "pipeline" {
       version         = "1"
       input_artifacts = ["build_output", "deploy_dev_output"]
       configuration = {
-        ProjectName = aws_codebuild_project.integration_dev.name
+        ProjectName   = aws_codebuild_project.integration_dev.name
+        PrimarySource = "build_output"
       }
     }
   }
