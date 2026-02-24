@@ -395,7 +395,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Action = ["codebuild:StartBuild", "codebuild:BatchGetBuilds"],
         Resource = [
           aws_codebuild_project.build.arn,
-          aws_codebuild_project.deploy_dev.arn
+          aws_codebuild_project.deploy_dev.arn,
+          aws_codebuild_project.integration_dev.arn
         ]
       },
       # Use connection
@@ -406,6 +407,16 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "codestar-connections:UseConnection"
         ],
         Resource = aws_codestarconnections_connection.github.arn
+      },
+      # Allow CodePipeline to pass CodeBuild service roles
+      {
+        Effect = "Allow",
+        Action = ["iam:PassRole"],
+        Resource = [
+          aws_iam_role.codebuild_build_role.arn,
+          aws_iam_role.codebuild_deploy_role.arn,
+          aws_iam_role.codebuild_integration_role.arn
+        ]
       }
     ]
   })
