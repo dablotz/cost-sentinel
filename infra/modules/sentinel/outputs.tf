@@ -7,17 +7,17 @@ output "sns_topic_arn" {
 }
 
 output "dashboard_website_url" {
-  value       = var.dashboard_bucket_name == null ? null : aws_s3_bucket_website_configuration.dashboard[0].website_endpoint
+  value       = local.dashboard_enabled ? aws_s3_bucket_website_configuration.dashboard[0].website_endpoint : null
   description = "S3 static website endpoint for the dashboard."
 }
 
 output "dashboard_bucket_name" {
-  value       = local.dashboard_enabled ? null : aws_s3_bucket.dashboard[0].bucket
+  value       = local.dashboard_enabled ? aws_s3_bucket.dashboard[0].bucket : null
   description = "Dashboard bucket name (if enabled)."
 }
 
 output "dashboard_status_object" {
-  value = local.dashboard_enabled ? null : "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json"
+  value = local.dashboard_enabled ? "s3://${aws_s3_bucket.dashboard[0].bucket}/latest.json" : null
 }
 
 output "lambda_function_name" {

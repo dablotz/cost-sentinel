@@ -18,7 +18,6 @@ module "sut" {
   lambda_zip_path           = "${path.module}/fixtures/ingestor.zip"
 
   # Dashboard disabled for this test
-  dashboard_bucket_name = "example-dashboard-bucket-test"
+  dashboard_bucket_name = null
   alert_email           = "testy.mctester@example.com"
-  dashboard_web_dir     = "../../../../../web"
 }
