@@ -8,11 +8,11 @@ phases:
   build:
     commands:
       - echo "CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR"
-      - pwd
-      - ls -la
+      - echo "Listing sibling sources under $CODEBUILD_SRC_DIR/.."
+      - ls -la "$CODEBUILD_SRC_DIR/.." || true
 
       # Find terraform outputs artifact (it may be in the secondary artifact directory)
-      - export TF_OUTPUTS_FILE="$(find . -maxdepth 10 -name terraform-outputs.json -print -quit)"
+      - export TF_OUTPUTS_FILE="$(find "$CODEBUILD_SRC_DIR/.." -maxdepth 5 -name terraform-outputs.json -print -quit)"
       - echo "TF_OUTPUTS_FILE=$TF_OUTPUTS_FILE"
       - test -n "$TF_OUTPUTS_FILE"
       - cat "$TF_OUTPUTS_FILE"
