@@ -184,6 +184,12 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
         Resource = aws_dynamodb_table.tflock.arn
       },
 
+      {
+        Effect   = "Allow",
+        Action   = ["kms:CreateKey", "kms:PutKeyPolicy", "kms:CreateAlias", "kms:UpdateAlias", "kms:DeleteAlias", "kms:EnableKeyRotation", "kms:TagResource", "kms:UntagResource", "kms:DescribeKey"],
+        Resource = "*"
+      },
+
       # App resources managed by Terraform
       # (You can narrow these later; keep functional first.)
       { Effect = "Allow", Action = ["budgets:*"], Resource = "*" },

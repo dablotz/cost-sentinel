@@ -217,21 +217,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
           Effect   = "Allow",
           Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
           Resource = "*"
-        },
-        # Allow Lambda to decrypt its environment variables (AWS-managed key)
-        {
-          Effect = "Allow",
-          Action = [
-            "kms:Decrypt",
-            "kms:DescribeKey"
-          ],
-          Resource = "*",
-          Condition = {
-            StringEquals = {
-              "kms:ViaService"    = "lambda.${data.aws_region.current.region}.amazonaws.com",
-              "kms:CallerAccount" = data.aws_caller_identity.current.account_id
-            }
-          }
         }
       ],
       (local.dashboard_enabled) ? [
@@ -250,6 +235,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
 resource "aws_lambda_function" "ingestor" {
   function_name = "${var.name_prefix}-ingestor"
   role          = aws_iam_role.lambda_role.arn
+  kms_key_arn   = aws_kms_key.lambda_env.arn
   handler       = "handler.lambda_handler"
   runtime       = "python3.11"
   timeout       = 10
