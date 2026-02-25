@@ -11,10 +11,6 @@ terraform {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-data "aws_kms_alias" "lambda" {
-  name = "alias/aws/lambda"
-}
-
 locals {
   dashboard_web_assets = local.dashboard_enabled ? {
     "index.html" = {
@@ -229,8 +225,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
             "kms:Decrypt",
             "kms:DescribeKey"
           ],
-          Resource = data.aws_kms_alias.lambda.target_key_arn
-        },
+          Resource = "*",
+          Condition = {
+            StringEquals = {
+              "kms:ViaService"    = "lambda.${data.aws_region.current.region}.amazonaws.com",
+              "kms:CallerAccount" = data.aws_caller_identity.current.account_id
+            }
+          }
+        }
       ],
       (local.dashboard_enabled) ? [
         {
