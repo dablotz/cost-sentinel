@@ -39,6 +39,25 @@ resource "aws_kms_key" "lambda_env" {
             "kms:CallerAccount" = data.aws_caller_identity.current.account_id
           }
         }
+      },
+
+      # Allow CloudWatch Logs to use the key
+      {
+        Sid : "AllowCloudWatchLogs",
+        Effect : "Allow",
+        Principal : { Service = "logs.${data.aws_region.current.id}.amazonaws.com" },
+        Action : [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ],
+        Resource : "*",
+        Condition : {
+          ArnLike = {
+            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*"
+          }
+        }
       }
     ]
   })
