@@ -25,7 +25,8 @@ phases:
     commands:
       - mkdir -p dist
       - cd app/ingestor
-      - zip -r ../../dist/ingestor.zip handler.py requirements.txt
+      - pip install -r requirements.txt -t .
+      - zip -r ../../dist/ingestor.zip . -x "*.pyc" "__pycache__/*"
 artifacts:
   files:
     - dist/ingestor.zip
