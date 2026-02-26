@@ -357,9 +357,8 @@ resource "aws_lambda_function" "ingestor" {
     }
   }
 
-  reserved_concurrent_executions = 5
-  depends_on                     = [aws_cloudwatch_log_group.lambda_ingestor]
-  tags                           = var.common_tags
+  depends_on = [aws_cloudwatch_log_group.lambda_ingestor]
+  tags       = var.common_tags
 }
 
 

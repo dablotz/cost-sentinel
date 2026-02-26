@@ -336,7 +336,8 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
           "lambda:UpdateFunctionConfiguration",
           "lambda:AddPermission",
           "lambda:RemovePermission",
-          "lambda:TagResource"
+          "lambda:TagResource",
+          "lambda:PutFunctionConcurrency"
         ],
         Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.name_prefix}-*"
       },
