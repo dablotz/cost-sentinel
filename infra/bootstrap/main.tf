@@ -208,7 +208,9 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
         ],
         Resource = [
           "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*",
-          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*:*"
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*:*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*:*"
         ]
       }
       ,
@@ -254,13 +256,10 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
         Effect = "Allow",
         Action = [
           "kms:PutKeyPolicy",
-          "kms:GetKeyPolicy",
-          "kms:GetKeyRotationStatus",
           "kms:CreateAlias",
           "kms:UpdateAlias",
           "kms:DeleteAlias",
           "kms:EnableKeyRotation",
-          "kms:DescribeKey",
           "kms:ScheduleKeyDeletion",
           "kms:ListAliases",
           "kms:Encrypt",
@@ -275,7 +274,36 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
         }
       },
 
-      # App resources managed by Terraform
+      # Broad read access for Terraform state refresh
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:GetAccelerateConfiguration",
+          "s3:GetBucket*",
+          "s3:GetEncryptionConfiguration",
+          "s3:GetLifecycleConfiguration",
+          "s3:GetObject*",
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket",
+          "lambda:GetFunction*",
+          "lambda:GetPolicy",
+          "lambda:ListTags",
+          "lambda:ListVersionsByFunction",
+          "sns:GetSubscriptionAttributes",
+          "sns:GetTopicAttributes",
+          "sns:ListTagsForResource",
+          "sns:ListSubscriptionsByTopic",
+          "budgets:ViewBudget",
+          "budgets:DescribeBudget*",
+          "budgets:List*",
+          "kms:DescribeKey",
+          "kms:GetKey*",
+          "kms:List*"
+        ],
+        Resource = "*"
+      },
+
+      # App resources managed by Terraform - write operations only
       {
         Effect = "Allow",
         Action = [
@@ -285,11 +313,10 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
           "s3:PutBucketVersioning",
           "s3:PutBucketPublicAccessBlock",
           "s3:PutEncryptionConfiguration",
+          "s3:PutBucketTagging",
           "s3:PutBucketWebsite",
-          "s3:GetBucket*",
-          "s3:ListBucket",
-          "s3:PutObject",
-          "s3:GetObject"
+          "s3:PutLifecycleConfiguration",
+          "s3:PutObject"
         ],
         Resource = [
           "arn:aws:s3:::${var.name_prefix}-*",
@@ -303,10 +330,9 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
           "lambda:DeleteFunction",
           "lambda:UpdateFunctionCode",
           "lambda:UpdateFunctionConfiguration",
-          "lambda:GetFunction",
           "lambda:AddPermission",
           "lambda:RemovePermission",
-          "lambda:GetPolicy"
+          "lambda:TagResource"
         ],
         Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.name_prefix}-*"
       },
@@ -318,8 +344,7 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
           "sns:Subscribe",
           "sns:Unsubscribe",
           "sns:SetTopicAttributes",
-          "sns:GetTopicAttributes",
-          "sns:ListSubscriptionsByTopic"
+          "sns:TagResource"
         ],
         Resource = "arn:aws:sns:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.name_prefix}-*"
       },
@@ -329,11 +354,9 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
           "budgets:CreateBudgetAction",
           "budgets:DeleteBudgetAction",
           "budgets:UpdateBudgetAction",
-          "budgets:DescribeBudgetAction",
           "budgets:ModifyBudget",
           "budgets:CreateBudget",
-          "budgets:DeleteBudget",
-          "budgets:ViewBudget"
+          "budgets:DeleteBudget"
         ],
         Resource = "arn:aws:budgets::${data.aws_caller_identity.current.account_id}:budget/${var.name_prefix}-*"
       },

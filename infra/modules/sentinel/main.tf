@@ -325,6 +325,10 @@ resource "aws_cloudwatch_log_group" "lambda_ingestor" {
   name              = "/aws/lambda/${var.name_prefix}-ingestor"
   retention_in_days = 30
   kms_key_id        = aws_kms_key.lambda_env.arn
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # Lambda (zip is built by your workflow and referenced here)
