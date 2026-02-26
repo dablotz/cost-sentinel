@@ -5,6 +5,10 @@ resource "aws_kms_key" "lambda_env" {
 
   tags = var.common_tags
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
