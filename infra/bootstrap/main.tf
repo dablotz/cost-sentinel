@@ -185,8 +185,25 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
       },
 
       {
-        Effect   = "Allow",
-        Action   = ["kms:CreateKey", "kms:PutKeyPolicy", "kms:CreateAlias", "kms:GetKeyPolicy", "kms:GetKeyRotationStatus", "kms:UpdateAlias", "kms:DeleteAlias", "kms:EnableKeyRotation", "kms:ListResourceTags", "kms:TagResource", "kms:UntagResource", "kms:DescribeKey"],
+        Effect = "Allow",
+        Action = [
+          "kms:CreateKey",
+          "kms:PutKeyPolicy",
+          "kms:CreateAlias",
+          "kms:GetKeyPolicy",
+          "kms:GetKeyRotationStatus",
+          "kms:UpdateAlias",
+          "kms:DeleteAlias",
+          "kms:EnableKeyRotation",
+          "kms:ListResourceTags",
+          "kms:TagResource",
+          "kms:UntagResource",
+          "kms:DescribeKey",
+          "kms:ScheduleKeyDeletion",
+          "kms:ListAliases",
+          "kms:Encrypt",
+          "kms:CreateGrant"
+        ],
         Resource = "*"
       },
 
