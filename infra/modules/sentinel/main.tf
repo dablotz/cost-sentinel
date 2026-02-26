@@ -33,6 +33,11 @@ locals {
 resource "aws_s3_bucket" "alerts" {
   bucket        = var.alerts_bucket_name
   force_destroy = var.force_destroy_bucket
+  tags          = var.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_versioning" "alerts" {
@@ -59,10 +64,37 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alerts" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "alerts" {
+  bucket = aws_s3_bucket.alerts.id
+
+  rule {
+    id     = "archive-old-alerts"
+    status = "Enabled"
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+
+    expiration {
+      days = 365
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+}
+
 resource "aws_s3_bucket" "dashboard" {
   count         = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
   bucket        = var.dashboard_bucket_name
   force_destroy = var.force_destroy_bucket
+  tags          = var.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # NOTE: For a public static website, we must allow a public bucket policy.
@@ -79,6 +111,20 @@ resource "aws_s3_bucket_versioning" "dashboard" {
   count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
   versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "dashboard" {
+  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  bucket = aws_s3_bucket.dashboard[0].id
+
+  rule {
+    id     = "cleanup-old-versions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 7
+    }
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
@@ -173,7 +219,44 @@ resource "aws_s3_object" "dashboard_latest_placeholder" {
 }
 
 resource "aws_sns_topic" "budget_alerts" {
-  name = var.sns_topic_name
+  name              = var.sns_topic_name
+  kms_master_key_id = aws_kms_key.sns.id
+  tags              = var.common_tags
+}
+
+resource "aws_kms_key" "sns" {
+  description             = "${var.name_prefix} SNS topic encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = var.common_tags
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowRootAdmin",
+        Effect    = "Allow",
+        Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" },
+        Action    = "kms:*",
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowBudgetsPublish",
+        Effect    = "Allow",
+        Principal = { Service = "budgets.amazonaws.com" },
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey"],
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowSNSUse",
+        Effect    = "Allow",
+        Principal = { Service = "sns.amazonaws.com" },
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey"],
+        Resource  = "*"
+      }
+    ]
+  })
 }
 
 # Optional email subscription (nice for early testing)
@@ -214,10 +297,18 @@ resource "aws_iam_role_policy" "lambda_policy" {
           ]
         },
         {
-          Effect   = "Allow",
-          Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-          Resource = "*"
+          Effect = "Allow",
+          Action = [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          Resource = [
+            "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*",
+            "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*:*"
+          ]
         }
+
       ],
       (local.dashboard_enabled) ? [
         {
@@ -230,6 +321,11 @@ resource "aws_iam_role_policy" "lambda_policy" {
   })
 }
 
+resource "aws_cloudwatch_log_group" "lambda_ingestor" {
+  name              = "/aws/lambda/${var.name_prefix}-ingestor"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.lambda_env.arn
+}
 
 # Lambda (zip is built by your workflow and referenced here)
 resource "aws_lambda_function" "ingestor" {
@@ -252,7 +348,12 @@ resource "aws_lambda_function" "ingestor" {
       DASHBOARD_BUCKET = var.dashboard_bucket_name == null ? "" : aws_s3_bucket.dashboard[0].bucket
     }
   }
+
+  reserved_concurrent_executions = 5
+  depends_on                     = [aws_cloudwatch_log_group.lambda_ingestor]
+  tags                           = var.common_tags
 }
+
 
 # Allow SNS -> Lambda
 resource "aws_lambda_permission" "allow_sns" {

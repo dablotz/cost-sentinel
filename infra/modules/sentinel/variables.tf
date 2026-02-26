@@ -1,3 +1,12 @@
+variable "common_tags" {
+  type = map(string)
+  default = {
+    Project     = "cost-sentinel"
+    ManagedBy   = "terraform"
+    Environment = "dev"
+  }
+}
+
 variable "name_prefix" {
   type        = string
   description = "Prefix for naming AWS resources."

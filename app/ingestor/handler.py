@@ -78,34 +78,41 @@ def _normalize_sns_event(event: dict[str, Any]) -> list[dict[str, Any]]:
 def lambda_handler(event, context, s3_client=None):
     s3_client = s3_client or _s3_client()
 
-    records = _normalize_sns_event(event)
+    if not isinstance(event, dict) or "Records" not in event:
+        return {"status": "error", "message": "Invalid event structure"}
 
-    now = _utc_now()
-    key = f"{KEY_PREFIX}/{now:%Y/%m/%d}/alerts.jsonl"
-    _s3_put(
-        s3_client,
-        ALERTS_BUCKET,
-        key,
-        _to_jsonl(records),
-        content_type="application/jsonl",
-    )
-
-    if WRITE_LATEST and records:
-        latest_key = f"{KEY_PREFIX}/latest.json"
+    # Add error handling for S3 operations
+    try:
+        records = _normalize_sns_event(event)
+        now = _utc_now()
+        key = f"{KEY_PREFIX}/{now:%Y/%m/%d}/alerts.jsonl"
         _s3_put(
             s3_client,
             ALERTS_BUCKET,
-            latest_key,
-            json.dumps(records[-1], indent=2).encode("utf-8"),
+            key,
+            _to_jsonl(records),
+            content_type="application/jsonl",
         )
 
-    # later, after records created:
-    if DASHBOARD_BUCKET and records:
-        _s3_put(
-            s3_client,
-            DASHBOARD_BUCKET,
-            "latest.json",
-            json.dumps(records[-1], indent=2).encode("utf-8"),
-        )
+        if WRITE_LATEST and records:
+            latest_key = f"{KEY_PREFIX}/latest.json"
+            _s3_put(
+                s3_client,
+                ALERTS_BUCKET,
+                latest_key,
+                json.dumps(records[-1], indent=2).encode("utf-8"),
+            )
+
+        # later, after records created:
+        if DASHBOARD_BUCKET and records:
+            _s3_put(
+                s3_client,
+                DASHBOARD_BUCKET,
+                "latest.json",
+                json.dumps(records[-1], indent=2).encode("utf-8"),
+            )
+    except Exception as e:
+        print(f"Error processing event: {e}")
+        raise
 
     return {"status": "ok", "written": len(records), "key": key}

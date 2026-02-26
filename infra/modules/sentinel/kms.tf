@@ -3,6 +3,8 @@ resource "aws_kms_key" "lambda_env" {
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
+  tags = var.common_tags
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [

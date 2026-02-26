@@ -1,3 +1,12 @@
+variable "common_tags" {
+  type = map(string)
+  default = {
+    Project     = "cost-sentinel"
+    ManagedBy   = "terraform"
+    Environment = "dev"
+  }
+}
+
 variable "aws_region" {
   type    = string
   default = "us-east-1"

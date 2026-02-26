@@ -21,6 +21,11 @@ data "aws_region" "current" {}
 resource "aws_s3_bucket" "artifacts" {
   bucket        = var.artifact_bucket_name
   force_destroy = true
+  tags          = var.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "artifacts" {
@@ -36,6 +41,23 @@ resource "aws_s3_bucket_versioning" "artifacts" {
   versioning_configuration { status = "Enabled" }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    id     = "cleanup-old-artifacts"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+
+    expiration {
+      days = 90
+    }
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
   rule {
@@ -46,6 +68,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
 resource "aws_s3_bucket" "tfstate" {
   bucket        = var.tf_state_bucket_name
   force_destroy = true
+  tags          = var.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "tfstate" {
@@ -59,6 +86,19 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
 resource "aws_s3_bucket_versioning" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
   versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  rule {
+    id     = "cleanup-old-state-versions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
@@ -113,10 +153,18 @@ resource "aws_iam_role_policy" "codebuild_build_policy" {
     Statement = [
       # Logs
       {
-        Effect   = "Allow",
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Resource = "*"
-      },
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*:*"
+        ]
+      }
+      ,
       # Pipeline artifact bucket (read inputs, write build output)
       {
         Effect = "Allow",
@@ -152,10 +200,18 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
     Statement = [
       # Logs
       {
-        Effect   = "Allow",
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Resource = "*"
-      },
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*:*"
+        ]
+      }
+      ,
 
       # Pipeline artifacts bucket (read build output, write deploy output like terraform-outputs.json)
       {
@@ -185,50 +241,129 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
       },
 
       {
+        Effect   = "Allow",
+        Action   = ["kms:CreateKey", "kms:TagResource"],
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "aws:RequestTag/Project" : "cost-sentinel"
+          }
+        }
+      },
+      {
         Effect = "Allow",
         Action = [
-          "kms:CreateKey",
           "kms:PutKeyPolicy",
-          "kms:CreateAlias",
           "kms:GetKeyPolicy",
           "kms:GetKeyRotationStatus",
+          "kms:CreateAlias",
           "kms:UpdateAlias",
           "kms:DeleteAlias",
           "kms:EnableKeyRotation",
-          "kms:ListResourceTags",
-          "kms:TagResource",
-          "kms:UntagResource",
           "kms:DescribeKey",
           "kms:ScheduleKeyDeletion",
           "kms:ListAliases",
           "kms:Encrypt",
-          "kms:CreateGrant"
+          "kms:CreateGrant",
+          "kms:ListResourceTags"
         ],
-        Resource = "*"
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "aws:ResourceTag/Project" : "cost-sentinel"
+          }
+        }
       },
 
       # App resources managed by Terraform
-      # (You can narrow these later; keep functional first.)
-      { Effect = "Allow", Action = ["budgets:*"], Resource = "*" },
-      { Effect = "Allow", Action = ["sns:*"], Resource = "*" },
-      { Effect = "Allow", Action = ["lambda:*"], Resource = "*" },
-      { Effect = "Allow", Action = ["s3:*"], Resource = "*" },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:CreateBucket",
+          "s3:DeleteBucket",
+          "s3:PutBucketPolicy",
+          "s3:PutBucketVersioning",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:PutEncryptionConfiguration",
+          "s3:PutBucketWebsite",
+          "s3:GetBucket*",
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:GetObject"
+        ],
+        Resource = [
+          "arn:aws:s3:::${var.name_prefix}-*",
+          "arn:aws:s3:::${var.name_prefix}-*/*"
+        ]
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "lambda:CreateFunction",
+          "lambda:DeleteFunction",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:GetFunction",
+          "lambda:AddPermission",
+          "lambda:RemovePermission",
+          "lambda:GetPolicy"
+        ],
+        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.name_prefix}-*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:SetTopicAttributes",
+          "sns:GetTopicAttributes",
+          "sns:ListSubscriptionsByTopic"
+        ],
+        Resource = "arn:aws:sns:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.name_prefix}-*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "budgets:CreateBudgetAction",
+          "budgets:DeleteBudgetAction",
+          "budgets:UpdateBudgetAction",
+          "budgets:DescribeBudgetAction",
+          "budgets:ModifyBudget",
+          "budgets:CreateBudget",
+          "budgets:DeleteBudget",
+          "budgets:ViewBudget"
+        ],
+        Resource = "arn:aws:budgets::${data.aws_caller_identity.current.account_id}:budget/${var.name_prefix}-*"
+      },
 
       # IAM needed because Terraform creates roles/policies for Lambda execution.
-      { Effect = "Allow", Action = [
-        "iam:PassRole",
-        "iam:GetRole",
-        "iam:CreateRole",
-        "iam:DeleteRole",
-        "iam:PutRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:GetRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy"
+      {
+        Effect = "Allow",
+        Action = [
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:TagRole",
+          "iam:UntagRole"
         ],
-        Resource = "*"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name_prefix}-*"
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["iam:PassRole"],
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.name_prefix}-*",
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" : ["lambda.amazonaws.com"]
+          }
+        }
       }
     ]
   })
@@ -256,10 +391,18 @@ resource "aws_iam_role_policy" "codebuild_integration_policy" {
     Statement = [
       # Logs
       {
-        Effect   = "Allow",
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Resource = "*"
-      },
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.name_prefix}-*:*"
+        ]
+      }
+      ,
 
       # Pipeline artifacts bucket: read terraform-outputs.json + script from artifact
       {
