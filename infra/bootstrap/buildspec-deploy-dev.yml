@@ -28,6 +28,7 @@ phases:
       - mkdir -p infra/envs/dev/dist
       - cp "$ZIP_PATH" infra/envs/dev/dist/ingestor.zip
       - ls -la infra/envs/dev/dist/ingestor.zip
+      - unzip -l infra/envs/dev/dist/ingestor.zip | head -20
 
       - cd infra/envs/dev
       - REPO_ROOT="$CODEBUILD_SRC_DIR"
