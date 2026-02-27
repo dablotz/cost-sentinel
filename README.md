@@ -202,7 +202,7 @@ MIT License - See LICENSE file for details
 
 ## Author
 
-[Your Name]
+Greg Blotzer
 - GitHub: [@dablotz](https://github.com/dablotz)
 - LinkedIn: [My Profile](https://linkedin.com/in/gblotzer)
 
