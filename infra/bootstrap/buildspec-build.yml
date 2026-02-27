@@ -26,11 +26,7 @@ phases:
       - mkdir -p dist
       - cd app/ingestor
       - pip install -r requirements.txt -t .
-      - ls -la
       - zip -r ../../dist/ingestor.zip . -x "*.pyc" "__pycache__/*"
-      - cd ../..
-      - ls -la dist/
-      - unzip -l dist/ingestor.zip | head -20
 artifacts:
   files:
     - dist/ingestor.zip

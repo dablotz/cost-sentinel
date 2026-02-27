@@ -1,242 +1,211 @@
-# Architecture
+# Cost Sentinel
 
-## High-Level Architecture
+AWS budget monitoring system with automated alerts and a public dashboard. Built with Terraform, AWS CodePipeline, Lambda, and S3.
 
-                        ┌────────────────────┐
-                        │      GitHub        │
-                        │  Source Repository │
-                        └─────────┬──────────┘
-                                  │
-                                  │ CodeConnections
-                                  ▼
-                        ┌────────────────────┐
-                        │    CodePipeline    │
-                        │  CI/CD Orchestration
-                        └─────────┬──────────┘
-                                  │
-                 ┌────────────────┴────────────────┐
-                 │                                 │
-                 ▼                                 ▼
-        ┌──────────────────┐              ┌──────────────────┐
-        │   CodeBuild      │              │   CodeBuild      │
-        │  Build Stage     │              │  Deploy Stage    │
-        │                  │              │                  │
-        │ - Validate TF    │              │ - terraform init │
-        │ - Package Lambda │              │ - terraform plan │
-        │                  │              │ - terraform apply│
-        └─────────┬────────┘              └─────────┬────────┘
-                  │                                 │
-                  │ Artifact                       │ Deploys
-                  ▼                                 ▼
-            ┌─────────────┐               ┌─────────────────────┐
-            │   S3        │               │  AWS Infrastructure │
-            │ Artifacts   │               │  (Terraform)        │
-            └─────────────┘               └─────────┬───────────┘
-                                                    │
-                                                    │ creates
-                                                    ▼
-                                      ┌──────────────────────────┐
-                                      │      AWS Budget          │
-                                      │ Cost Threshold Monitoring│
-                                      └──────────┬───────────────┘
-                                                 │
-                                                 │ triggers
-                                                 ▼
-                                        ┌─────────────────┐
-                                        │      SNS        │
-                                        │ Alert Topic     │
-                                        └────────┬────────┘
-                                                 │
-                                                 │ invokes
-                                                 ▼
-                                        ┌─────────────────┐
-                                        │     Lambda      │
-                                        │ Alert Ingestor  │
-                                        └────────┬────────┘
-                                                 │
-                                                 │ writes alert records
-                                                 ▼
-                                        ┌─────────────────┐
-                                        │       S3        │
-                                        │ Alert Storage   │
-                                        │ alerts/*.json   │
-                                        └─────────────────┘
+## Overview
 
+Cost Sentinel monitors AWS spending and sends alerts when budget thresholds are exceeded. It demonstrates:
 
+- **Infrastructure as Code**: Terraform modules with comprehensive testing
+- **CI/CD**: AWS-native pipeline (CodePipeline, CodeBuild, CodeConnections)
+- **Security**: Least-privilege IAM, KMS encryption, tag-based policies
+- **Serverless Architecture**: Lambda + SNS + S3 for cost-effective monitoring
+- **DevOps Best Practices**: Pre-commit hooks, automated testing, integration tests
 
-# CI/CD Pipeline
+## Architecture
 
-Cost Sentinel uses AWS-native CI/CD tooling (CodePipeline, CodeBuild, CodeConnections)
+### Runtime Architecture
+![Runtime Architecture](docs/architecture-runtime.png)
 
-This keeps all compute, logging, and deployment activity contained within AWS for:
+### CI/CD Pipeline
+![CI Pipeline](docs/architecture-cicd.png)
 
-- predictable billing
-- easier cost monitoring
-- consistent IAM-based security
-- reduced external dependencies
+### Components
 
----
+- **AWS Budgets**: Monitors monthly spending against configurable thresholds
+- **SNS Topic**: Receives budget alerts (encrypted with KMS)
+- **Lambda Function**: Processes alerts and stores them in S3
+- **S3 Buckets**:
+  - Alert storage (versioned, lifecycle policies)
+  - Public dashboard (static website)
+- **CloudWatch Logs**: Lambda execution logs (encrypted, 30-day retention)
 
-# Pipeline Architecture
+## Features
 
-GitHub → CodeConnections → CodePipeline → CodeBuild → Terraform → AWS Resources
+### Security
+- Customer-managed KMS keys for encryption
+- Least-privilege IAM roles with resource-scoped permissions
+- Tag-based IAM conditions for infrastructure management
+- S3 bucket versioning and lifecycle policies
+- Secrets detection via pre-commit hooks
+- No credentials stored in repository
 
-Pipeline stages:
+### CI/CD
+- Multi-stage pipeline (Build → Deploy → Integration Test)
+- Automated Terraform validation and testing
+- Lambda integration tests in pipeline
+- Artifact management with S3
+- Remote state with DynamoDB locking
 
-1. Source
-   Pulls code from GitHub
+### Infrastructure
+- Modular Terraform design
+- Terraform native tests
+- Conditional resource creation
+- Prevent-destroy lifecycle rules on stateful resources
+- Cost optimization (lifecycle policies, pay-per-request DynamoDB)
 
-2. Build
-   Packages Lambda function
-   Validates Terraform
+## Prerequisites
 
-3. DeployDev
-   Applies Terraform to deploy infrastructure
-
----
-
-# Deployment Model
-
-Infrastructure is fully defined using Terraform.
-
-Pipeline deploys:
-
-- AWS Budgets
-- SNS alert topic
-- Lambda ingestor
-- S3 alert storage bucket
-- IAM roles and policies
-
-Terraform state stored remotely in S3 with DynamoDB locking.
-
----
-
-# Deployment Trigger
-
-Deployment occurs automatically on push to main branch.
-
-No manual deployment required.
-
----
-
-# Lambda Artifact Build
-
-Pipeline packages Lambda function:
-
-app/ingestor/handler.py → dist/ingestor.zip
-
-Terraform references this artifact during deployment.
-
----
-
-# First-Time Setup
-
-See:
-
-docs/runbook-ci.md
-
-For connection authorization and bootstrap instructions.
-
-## Development Setup
-
-Requirements:
+- AWS Account
+- GitHub Account
+- Terraform 1.7.5+ (use `tfenv` for version management)
 - Python 3.11+
-- Terraform 1.7.5
-- (Recommended) `tfenv` for Terraform version management
+- AWS CLI configured
 
-### Terraform version enforcement
+## Quick Start
 
-Terraform does **not** automatically enforce `.terraform-version` on its own; a version manager like `tfenv` reads it.
-
-1) Install `tfenv` (macOS via Homebrew):
+### 1. Bootstrap Infrastructure
 
 ```bash
-brew install tfenv
-tfenv install
-tfenv use
-terraform -version
+cd infra/bootstrap
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+terraform init
+terraform apply
 ```
 
-## Development Setup continued
-Setup:
+After apply, authorize the CodeConnections connection in AWS Console.
+
+### 2. Configure Repository
 
 ```bash
+# Install pre-commit hooks
+pip install -r requirements-dev.txt
+pre-commit install
+
+# Initialize development environment
 ./bootstrap-dev.sh
 ```
 
-OR (from repo root)
+### 3. Deploy Application
+
+Push to `main` branch to trigger the pipeline:
 
 ```bash
-make dev-init
+git push origin main
 ```
 
-## Testing
-Terraform-native tests live under:
+The pipeline will:
+1. Build and package Lambda function
+2. Run Terraform tests
+3. Deploy infrastructure
+4. Run integration tests
 
-```
-infra/modules/sentinel/tests/basic
-infra/modules/sentinel/tests/nodashboard
+## Configuration
+
+### Budget Settings
+
+Edit `infra/bootstrap/variables.tf`:
+
+```hcl
+monthly_budget_usd = 10
+budget_thresholds_percent = [10, 50, 80, 100]
 ```
 
-Run them directly:
+### Email Alerts
+
+Set `budget_email` in `terraform.tfvars` to receive email notifications (requires confirmation).
+
+### Dashboard
+
+The dashboard is automatically deployed to an S3 website. Access URL is in Terraform outputs:
 
 ```bash
-cd infra/modules/sentinel/tests/basic && terraform test
-cd ../nodashboard && terraform test
+terraform output dashboard_url
 ```
 
-OR (from repo root)
+## Development
+
+### Local Testing
 
 ```bash
+# Run Terraform tests
 make ci-test
+
+# Test Lambda locally
+cd app/ingestor
+python run_local.py
 ```
-Note: ci-test is the default target for make
 
----
+### Pre-commit Hooks
 
-# Security
+Automatically run on commit:
+- Terraform fmt/validate
+- Python linting (ruff)
+- Secrets detection
+- YAML linting
 
-No AWS credentials stored in repository.
+## Project Structure
 
-Pipeline uses IAM roles:
+```
+cost-sentinel/
+├── app/ingestor/          # Lambda function code
+├── infra/
+│   ├── bootstrap/         # CI/CD infrastructure
+│   ├── envs/dev/          # Environment-specific config
+│   └── modules/sentinel/  # Reusable Terraform module
+├── web/                   # Dashboard frontend
+├── scripts/               # Integration test scripts
+└── docs/                  # Post-mortems and runbooks
+```
 
-- CodePipeline role
-- CodeBuild role
-- Lambda execution role
+## Cost Profile
 
-All permissions defined in Terraform.
+Expected monthly cost: **< $5**
 
----
+- CodePipeline: ~$1
+- CodeBuild: $0-$2 (pay per build minute)
+- Lambda: $0 (free tier)
+- S3: Negligible
+- KMS: $1/key/month
+- AWS Budgets: Free (first 2 budgets)
 
-# Cost Profile
+## Security Considerations
 
-Typical monthly cost:
+- All S3 buckets have public access blocked (except dashboard)
+- KMS encryption for Lambda environment variables and SNS topics
+- CloudWatch Logs encrypted with KMS
+- IAM roles follow least-privilege principle
+- No long-lived credentials
+- Terraform state encrypted at rest
 
-CodePipeline: ~$1
-CodeBuild: $0–$2
-Lambda: $0 (free tier)
-S3: negligible
+## Lessons Learned
 
-Total expected cost: <$5/month
+See `docs/post-mortem-*.md` for detailed incident reports covering:
+- Initial deployment challenges
+- KMS integration and IAM debugging
+- CI/CD pipeline hardening
+- Tag-based IAM policy design
 
----
+## Future Enhancements
 
-# Why AWS CodeSuite Instead of GitHub Actions
+- [ ] Production environment with approval gates
+- [ ] Anomaly detection using AWS Cost Anomaly Detection
+- [ ] Slack/Teams integration
+- [ ] Cost forecasting dashboard
+- [ ] Multi-account support via AWS Organizations
+- [ ] Automated rollback on failed deployments
 
-Benefits:
+## License
 
-- centralized billing
-- IAM-native permissions
-- fewer external integrations
-- predictable cost model
-- aligns with enterprise AWS deployment patterns
+MIT License - See LICENSE file for details
 
----
+## Author
 
-# Future Improvements
+[Your Name]
+- GitHub: [@dablotz](https://github.com/dablotz)
+- LinkedIn: [My Profile](https://linkedin.com/in/gblotzer)
 
-- production pipeline
-- deployment approval stages
-- dashboard frontend hosted on S3
-- anomaly detection integration
-- automated rollback safeguards
+## Acknowledgments
+
+Built as a demonstration of AWS cloud architecture, IaC best practices, and CI/CD automation.

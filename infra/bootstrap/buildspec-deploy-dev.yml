@@ -14,25 +14,16 @@ phases:
 
   build:
     commands:
-      # Debug (keep for now; remove once stable)
-      - echo "PWD:" && pwd
-      - echo "Top-level files:" && ls -la
-      - echo "Find ingestor.zip:" && find . -maxdepth 6 -name "ingestor.zip" -print
-
-      # Locate the zip from the incoming artifact (wherever CodePipeline put it)
+      # Locate the zip from the incoming artifact
       - ZIP_PATH=$(find . -maxdepth 10 -name "ingestor.zip" | head -n 1)
       - test -n "$ZIP_PATH"
-      - echo "Using ZIP_PATH=$ZIP_PATH"
 
-      # Ensure the env-local dist exists and copy zip there
+      # Copy zip to expected location
       - mkdir -p infra/envs/dev/dist
       - cp "$ZIP_PATH" infra/envs/dev/dist/ingestor.zip
-      - ls -la infra/envs/dev/dist/ingestor.zip
-      - unzip -l infra/envs/dev/dist/ingestor.zip | head -20
 
       - cd infra/envs/dev
       - REPO_ROOT="$CODEBUILD_SRC_DIR"
-      - echo "REPO_ROOT=$REPO_ROOT"
 
       # Create terraform.tfvars
       - |

@@ -1,0 +1,17 @@
+# AWS Configuration
+aws_region = "us-east-1"
+
+# GitHub Repository
+github_repo   = "yourusername/cost-sentinel"
+github_branch = "main"
+
+# S3 Bucket Names (must be globally unique)
+artifact_bucket_name      = "your-unique-prefix-cost-sentinel-artifacts"
+tf_state_bucket_name      = "your-unique-prefix-cost-sentinel-tfstate"
+alerts_bucket_name_dev    = "your-unique-prefix-cost-sentinel-app-alerts"
+dashboard_bucket_name_dev = "your-unique-prefix-cost-sentinel-dashboard-site"
+
+# Budget Configuration
+budget_email              = "your-email@example.com"  # Optional
+monthly_budget_usd        = 10
+budget_thresholds_percent = [10, 50, 80, 100]
