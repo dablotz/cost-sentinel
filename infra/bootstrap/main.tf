@@ -473,6 +473,11 @@ resource "aws_codebuild_project" "build" {
     image           = "aws/codebuild/standard:7.0"
     type            = "LINUX_CONTAINER"
     privileged_mode = false
+
+    environment_variable {
+      name  = "ARTIFACT_BUCKET"
+      value = aws_s3_bucket.artifacts.bucket
+    }
   }
 
   source {
@@ -492,6 +497,10 @@ resource "aws_codebuild_project" "deploy_dev" {
     image        = "aws/codebuild/standard:7.0"
     type         = "LINUX_CONTAINER"
 
+    environment_variable {
+      name  = "ARTIFACT_BUCKET"
+      value = aws_s3_bucket.artifacts.bucket
+    }
     environment_variable {
       name  = "TF_STATE_BUCKET"
       value = aws_s3_bucket.tfstate.bucket

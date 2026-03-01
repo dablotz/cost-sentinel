@@ -22,9 +22,14 @@ variable "alerts_bucket_name" {
   description = "Must be globally unique."
 }
 
-variable "lambda_zip_path" {
+variable "lambda_s3_bucket" {
   type        = string
-  description = "Built lambda zip path, e.g. ../../dist/ingestor.zip"
+  description = "S3 bucket containing Lambda zip."
+}
+
+variable "lambda_s3_key" {
+  type        = string
+  description = "S3 key for Lambda zip."
 }
 
 variable "alert_email" {

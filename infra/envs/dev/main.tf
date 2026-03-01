@@ -14,7 +14,8 @@ module "sentinel" {
   alerts_bucket_name   = var.alerts_bucket_name
   force_destroy_bucket = true
 
-  lambda_zip_path = var.lambda_zip_path
+  lambda_s3_bucket = var.lambda_s3_bucket
+  lambda_s3_key    = var.lambda_s3_key
 
   alert_email = var.alert_email
 

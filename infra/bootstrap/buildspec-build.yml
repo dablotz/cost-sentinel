@@ -27,10 +27,14 @@ phases:
       - cd app/ingestor
       - pip install -r requirements.txt -t .
       - zip -r ../../dist/ingestor.zip . -x "*.pyc" "__pycache__/*"
+      - cd ../..
+      # Upload Lambda zip to S3 for reliable access
+      - BUILD_ID="${CODEBUILD_BUILD_NUMBER:-$(date +%s)}"
+      - aws s3 cp dist/ingestor.zip "s3://${ARTIFACT_BUCKET}/lambda-builds/ingestor-${BUILD_ID}.zip"
+      - echo "Uploaded Lambda zip to s3://${ARTIFACT_BUCKET}/lambda-builds/ingestor-${BUILD_ID}.zip"
+      - echo "${BUILD_ID}" > dist/build-id.txt
 artifacts:
   files:
-    - dist/ingestor.zip
+    - dist/build-id.txt
     - infra/**/*
-    - app/**/*
-    - web/**/*
     - scripts/**

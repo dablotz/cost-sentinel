@@ -12,7 +12,6 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 data "aws_s3_object" "lambda_zip" {
-  count  = var.lambda_s3_bucket != null ? 1 : 0
   bucket = var.lambda_s3_bucket
   key    = var.lambda_s3_key
 }
@@ -341,7 +340,7 @@ resource "aws_cloudwatch_log_group" "lambda_ingestor" {
   }
 }
 
-# Lambda (zip is built by your workflow and referenced here)
+# Lambda (zip is deployed from S3)
 resource "aws_lambda_function" "ingestor" {
   function_name = "${var.name_prefix}-ingestor"
   role          = aws_iam_role.lambda_role.arn
@@ -351,12 +350,9 @@ resource "aws_lambda_function" "ingestor" {
   timeout       = 10
   memory_size   = 128
 
-  # Use S3 if provided, otherwise use local file
   s3_bucket         = var.lambda_s3_bucket
   s3_key            = var.lambda_s3_key
-  filename          = var.lambda_s3_bucket == null ? var.lambda_zip_path : null
-  source_code_hash  = var.lambda_s3_bucket == null ? filebase64sha256(var.lambda_zip_path) : null
-  s3_object_version = var.lambda_s3_bucket != null ? data.aws_s3_object.lambda_zip[0].version_id : null
+  s3_object_version = data.aws_s3_object.lambda_zip.version_id
 
   environment {
     variables = {

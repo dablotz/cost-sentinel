@@ -25,7 +25,7 @@ TF_ENV ?= dev
 TF_DIR := infra/envs/$(TF_ENV)
 
 TERRAFORM_VERSION := 1.7.5
-CODEBUILD_IMAGE   := public.ecr.aws/codebuild/standard:7.0
+CODEBUILD_IMAGE   := public.ecr.aws/docker/library/ubuntu:22.04
 
 .DEFAULT_GOAL := ci-test
 
@@ -152,8 +152,9 @@ ci-simulate:
 		-v "$$(pwd)":/workspace \
 		-w /workspace \
 		$(CODEBUILD_IMAGE) \
-		bash -lc '\
+		bash -c '\
 			set -e; \
+			apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null; \
 			echo "Installing Terraform $(TERRAFORM_VERSION)..."; \
 			curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip; \
 			unzip -o /tmp/terraform.zip -d /usr/local/bin; \

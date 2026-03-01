@@ -35,21 +35,14 @@ variable "alert_email" {
   description = "Optional email to subscribe to SNS for testing."
 }
 
-variable "lambda_zip_path" {
-  type        = string
-  description = "Path to the built Lambda zip file (local or s3://bucket/key)."
-}
-
 variable "lambda_s3_bucket" {
   type        = string
-  default     = null
-  description = "S3 bucket containing Lambda zip (alternative to lambda_zip_path)."
+  description = "S3 bucket containing Lambda zip."
 }
 
 variable "lambda_s3_key" {
   type        = string
-  default     = null
-  description = "S3 key for Lambda zip (alternative to lambda_zip_path)."
+  description = "S3 key for Lambda zip."
 }
 
 variable "budget_name" {
