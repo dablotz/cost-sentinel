@@ -17,8 +17,15 @@ phases:
       # Locate the zip from the incoming artifact
       - ZIP_PATH=$(find . -maxdepth 10 -name "ingestor.zip" | head -n 1)
       - test -n "$ZIP_PATH"
+      - echo "Found zip at: $ZIP_PATH"
+      - ls -lh "$ZIP_PATH"
 
-      # Copy zip to expected location
+      # Upload to S3 artifacts bucket for reliable access
+      - LAMBDA_ZIP_KEY="lambda-builds/ingestor-${CODEBUILD_BUILD_NUMBER:-latest}.zip"
+      - aws s3 cp "$ZIP_PATH" "s3://${TF_STATE_BUCKET}/${LAMBDA_ZIP_KEY}"
+      - echo "Uploaded to s3://${TF_STATE_BUCKET}/${LAMBDA_ZIP_KEY}"
+
+      # Also copy to local for Terraform (as backup)
       - mkdir -p infra/envs/dev/dist
       - cp "$ZIP_PATH" infra/envs/dev/dist/ingestor.zip
 
@@ -30,6 +37,8 @@ phases:
         cat > terraform.tfvars <<EOF
         alerts_bucket_name = "${ALERTS_BUCKET_NAME_DEV}"
         lambda_zip_path    = "./dist/ingestor.zip"
+        lambda_s3_bucket   = "${TF_STATE_BUCKET}"
+        lambda_s3_key      = "${LAMBDA_ZIP_KEY}"
         alert_email        = "${BUDGET_EMAIL}"
         monthly_budget_usd = ${MONTHLY_BUDGET_USD}
         budget_thresholds_percent = [${BUDGET_THRESHOLDS}]

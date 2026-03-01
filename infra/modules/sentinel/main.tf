@@ -11,6 +11,12 @@ terraform {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+data "aws_s3_object" "lambda_zip" {
+  count  = var.lambda_s3_bucket != null ? 1 : 0
+  bucket = var.lambda_s3_bucket
+  key    = var.lambda_s3_key
+}
+
 locals {
   dashboard_web_assets = local.dashboard_enabled ? {
     "index.html" = {
@@ -345,8 +351,12 @@ resource "aws_lambda_function" "ingestor" {
   timeout       = 10
   memory_size   = 128
 
-  filename         = var.lambda_zip_path
-  source_code_hash = filebase64sha256(var.lambda_zip_path)
+  # Use S3 if provided, otherwise use local file
+  s3_bucket         = var.lambda_s3_bucket
+  s3_key            = var.lambda_s3_key
+  filename          = var.lambda_s3_bucket == null ? var.lambda_zip_path : null
+  source_code_hash  = var.lambda_s3_bucket == null ? filebase64sha256(var.lambda_zip_path) : null
+  s3_object_version = var.lambda_s3_bucket != null ? data.aws_s3_object.lambda_zip[0].version_id : null
 
   environment {
     variables = {
