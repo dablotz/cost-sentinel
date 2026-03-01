@@ -229,6 +229,25 @@ resource "aws_sns_topic" "budget_alerts" {
   tags              = var.common_tags
 }
 
+resource "aws_sns_topic_policy" "budget_alerts" {
+  arn = aws_sns_topic.budget_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowBudgetsPublish",
+        Effect = "Allow",
+        Principal = {
+          Service = "budgets.amazonaws.com"
+        },
+        Action   = "SNS:Publish",
+        Resource = aws_sns_topic.budget_alerts.arn
+      }
+    ]
+  })
+}
+
 resource "aws_kms_key" "sns" {
   description             = "${var.name_prefix} SNS topic encryption"
   deletion_window_in_days = 7
