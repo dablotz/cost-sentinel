@@ -14,13 +14,11 @@ phases:
 
   build:
     commands:
-      # Get build ID from artifact
       - BUILD_ID=$(cat dist/build-id.txt)
-      - echo "Using Lambda build: ${BUILD_ID}"
-      - LAMBDA_S3_KEY="lambda-builds/ingestor-${BUILD_ID}.zip"
-
+      - echo "Using Lambda build ${BUILD_ID}"
+      - export LAMBDA_S3_KEY="lambda-builds/ingestor-${BUILD_ID}.zip"
       - cd infra/envs/dev
-      - REPO_ROOT="$CODEBUILD_SRC_DIR"
+      - export REPO_ROOT="$CODEBUILD_SRC_DIR"
 
       # Create terraform.tfvars
       - |
