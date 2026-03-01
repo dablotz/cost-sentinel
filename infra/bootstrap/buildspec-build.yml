@@ -38,3 +38,4 @@ artifacts:
     - dist/build-id.txt
     - infra/**/*
     - scripts/**
+    - web/**/*
