@@ -392,7 +392,7 @@ resource "aws_budgets_budget" "monthly_cost" {
       comparison_operator = "GREATER_THAN"
       threshold           = notification.value
       threshold_type      = "PERCENTAGE"
-      notification_type   = "ACTUAL"
+      notification_type   = "FORECASTED"
 
       subscriber_sns_topic_arns = [aws_sns_topic.budget_alerts.arn]
     }
