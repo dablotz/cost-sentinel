@@ -258,12 +258,8 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
         Effect = "Allow",
         Action = [
           "kms:PutKeyPolicy",
-          "kms:CreateAlias",
-          "kms:UpdateAlias",
-          "kms:DeleteAlias",
           "kms:EnableKeyRotation",
           "kms:ScheduleKeyDeletion",
-          "kms:ListAliases",
           "kms:Encrypt",
           "kms:CreateGrant",
           "kms:ListResourceTags"
@@ -274,6 +270,18 @@ resource "aws_iam_role_policy" "codebuild_deploy_policy" {
             "aws:ResourceTag/Project" : "cost-sentinel"
           }
         }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "kms:CreateAlias",
+          "kms:UpdateAlias",
+          "kms:DeleteAlias"
+        ],
+        Resource = [
+          "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/${var.name_prefix}-*",
+          "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"
+        ]
       },
 
       # Broad read access for Terraform state refresh
