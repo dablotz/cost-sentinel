@@ -1,5 +1,5 @@
-resource "aws_kms_key" "lambda_env" {
-  description             = "${var.name_prefix} Lambda env var encryption"
+resource "aws_kms_key" "main" {
+  description             = "${var.name_prefix} encryption key for Lambda, SNS, and CloudWatch Logs"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
@@ -21,7 +21,7 @@ resource "aws_kms_key" "lambda_env" {
         Resource : "*"
       },
 
-      # Allow Lambda service to use the key for this function's execution role
+      # Allow Lambda service to use the key
       {
         Sid : "AllowLambdaUse",
         Effect : "Allow",
@@ -58,12 +58,30 @@ resource "aws_kms_key" "lambda_env" {
             "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*"
           }
         }
+      },
+
+      # Allow SNS to use the key
+      {
+        Sid       = "AllowSNSUse",
+        Effect    = "Allow",
+        Principal = { Service = "sns.amazonaws.com" },
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey"],
+        Resource  = "*"
+      },
+
+      # Allow Budgets to use the key
+      {
+        Sid       = "AllowBudgetsPublish",
+        Effect    = "Allow",
+        Principal = { Service = "budgets.amazonaws.com" },
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey"],
+        Resource  = "*"
       }
     ]
   })
 }
 
-resource "aws_kms_alias" "lambda_env" {
-  name          = "alias/${var.name_prefix}-lambda-env"
-  target_key_id = aws_kms_key.lambda_env.key_id
+resource "aws_kms_alias" "main" {
+  name          = "alias/${var.name_prefix}"
+  target_key_id = aws_kms_key.main.key_id
 }
