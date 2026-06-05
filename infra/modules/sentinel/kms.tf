@@ -35,7 +35,7 @@ resource "aws_kms_key" "main" {
         Resource : "*",
         Condition : {
           StringEquals = {
-            "kms:ViaService"    = "lambda.${data.aws_region.current.id}.amazonaws.com",
+            "kms:ViaService"    = "lambda.${data.aws_region.current.region}.amazonaws.com",
             "kms:CallerAccount" = data.aws_caller_identity.current.account_id
           }
         }
@@ -45,7 +45,7 @@ resource "aws_kms_key" "main" {
       {
         Sid : "AllowCloudWatchLogs",
         Effect : "Allow",
-        Principal : { Service = "logs.${data.aws_region.current.id}.amazonaws.com" },
+        Principal : { Service = "logs.${data.aws_region.current.region}.amazonaws.com" },
         Action : [
           "kms:Decrypt",
           "kms:Encrypt",
@@ -55,7 +55,7 @@ resource "aws_kms_key" "main" {
         Resource : "*",
         Condition : {
           ArnLike = {
-            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*"
+            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.name_prefix}-*"
           }
         }
       },
