@@ -67,13 +67,27 @@ A production environment would:
 
 ## Next Steps
 
-- [ ] Design and stand up a `prod` Terraform environment (new workspace or new `infra/envs/prod/` root)
-- [ ] Determine appropriate budget threshold and alert email for prod
-- [ ] Establish a policy for what changes require prod promotion vs. dev-only iteration
-- [ ] Consider whether dev environment remains active alongside prod or is decommissioned
+- [x] Design and stand up a `prod` Terraform environment (`infra/envs/prod/` root)
+- [x] Determine appropriate budget threshold and alert email for prod ($10; personal email, subscribed manually in the Console)
+- [x] Establish a policy for what changes require prod promotion vs. dev-only iteration (manual approval gate; "promote current dev state")
+- [x] Consider whether dev environment remains active alongside prod or is decommissioned (dev kept as a silent canary)
+
+---
+
+## Outcome (2026-06-05): Production environment stood up
+
+This alert directly motivated promoting Cost Sentinel to a dedicated production environment. Implemented in three phases on the `infra-env-prod` line of work:
+
+1. **Module hygiene** — env-scoped resource names (SNS topic, budget) so two environments can coexist in one account; an `enable_budget` toggle; provider pinning; tag fixes.
+2. **Prod env root** — `infra/envs/prod/` mirroring dev, with protected buckets and prod owning the account-wide budget.
+3. **Pipeline** — a manual approval gate plus `DeployProd` / `IntegrationProd` stages appended to the existing pipeline.
+
+**Key design point:** AWS Budgets is account-scoped, so dev and prod budgets would both fire on the same spend. Prod therefore owns the single budget; dev runs the same stack silently. To avoid any monitoring gap, cutover is two pipeline runs — prod goes live first (brief duplicate alerts), then dev's budget is disabled.
+
+**Status:** prod is deployed and verified (budget, SNS topic with confirmed email + Lambda subscriptions, dedicated KMS key). Pending final step (Run 2): set dev `enable_budget = false` and remove the manual dev-topic subscription once a prod alert is observed. Full procedure in [runbook-prod-cutover.md](runbook-prod-cutover.md).
 
 ---
 
 ## Conclusion
 
-Cost Sentinel has graduated from a project under active construction to a system doing its job quietly in the background. The first organic alert confirms the pipeline is reliable in steady-state operation. The natural next milestone is a production deployment that separates monitoring infrastructure from the dev environment used to build it.
+Cost Sentinel has graduated from a project under active construction to a system doing its job quietly in the background. The first organic alert confirmed the pipeline is reliable in steady-state operation and motivated the move to a dedicated production environment that separates the live monitor from the dev environment used to build it.

@@ -30,6 +30,23 @@ Cost Sentinel monitors AWS spending and sends alerts when budget thresholds are 
   - Public dashboard (static website)
 - **CloudWatch Logs**: Lambda execution logs (encrypted, 30-day retention)
 
+### Environments
+
+The reusable `sentinel` module is deployed into two independent environments in
+the same account, each with its own resources (`cost-sentinel-<env>-*`) and its
+own KMS key:
+
+- **prod** — the authoritative, always-on monitor. Prod owns the single
+  account-wide AWS Budget and is the live alerting environment. Stateful
+  resources are protected with `prevent_destroy`.
+- **dev** — a canary for changes. Because AWS Budgets is account-scoped, two
+  budgets in one account would both fire on the same spend, so dev runs the full
+  stack with its budget disabled (`enable_budget = false`) to stay silent while
+  still exercising the SNS → Lambda wiring in integration tests.
+
+The human-facing email alert is subscribed to the prod SNS topic manually via
+the Console (kept out of Terraform); the Lambda subscription is Terraform-managed.
+
 ## Features
 
 ### Security
@@ -41,11 +58,12 @@ Cost Sentinel monitors AWS spending and sends alerts when budget thresholds are 
 - No credentials stored in repository
 
 ### CI/CD
-- Multi-stage pipeline (Build → Deploy → Integration Test)
+- Multi-stage pipeline: `Build → DeployDev → IntegrationDev → ApproveProd (manual) → DeployProd → IntegrationProd`
+- Manual approval gate before prod (promotes the current dev-validated commit)
 - Automated Terraform validation and testing
-- Lambda integration tests in pipeline
+- Lambda integration tests in pipeline (dev and prod)
 - Artifact management with S3
-- Remote state with DynamoDB locking
+- Remote state with DynamoDB locking (separate state key per environment)
 
 ### Infrastructure
 - Modular Terraform design
@@ -96,10 +114,16 @@ git push origin main
 ```
 
 The pipeline will:
-1. Build and package Lambda function
+1. Build and package the Lambda function
 2. Run Terraform tests
-3. Deploy infrastructure
-4. Run integration tests
+3. Deploy to **dev** and run integration tests
+4. Pause at a **manual approval** gate
+5. On approval, deploy to **prod** and run integration tests
+
+> The first prod deploy and any later prod promotion go through the approval
+> gate. Standing up a new prod environment also requires a one-time terminal
+> apply of `infra/bootstrap` to add the prod pipeline stages — see
+> [docs/runbook-prod-cutover.md](docs/runbook-prod-cutover.md).
 
 ## Configuration
 
@@ -114,7 +138,11 @@ budget_thresholds_percent = [10, 50, 80, 100]
 
 ### Email Alerts
 
-Set `budget_email` in `terraform.tfvars` to receive email notifications (requires confirmation).
+Prod's email alert is subscribed to the `cost-sentinel-prod-budget-alerts` SNS
+topic **manually in the Console** (confirmed once), keeping the address out of
+Terraform and state. For dev, you may optionally set `budget_email` in
+`terraform.tfvars` to create a Terraform-managed subscription (requires
+confirmation); it is normally left unset.
 
 ### Dashboard
 
@@ -151,8 +179,10 @@ Automatically run on commit:
 cost-sentinel/
 ├── app/ingestor/          # Lambda function code
 ├── infra/
-│   ├── bootstrap/         # CI/CD infrastructure
-│   ├── envs/dev/          # Environment-specific config
+│   ├── bootstrap/         # CI/CD infrastructure (pipeline, state backend)
+│   ├── envs/
+│   │   ├── dev/           # Dev environment (silent canary)
+│   │   └── prod/          # Prod environment (live, owns the budget)
 │   └── modules/sentinel/  # Reusable Terraform module
 ├── web/                   # Dashboard frontend
 ├── scripts/               # Integration test scripts
@@ -161,14 +191,14 @@ cost-sentinel/
 
 ## Cost Profile
 
-Expected monthly cost: **< $5**
+Expected monthly cost: **< $6**
 
 - CodePipeline: ~$1
 - CodeBuild: $0-$2 (pay per build minute)
 - Lambda: $0 (free tier)
 - S3: Negligible
-- KMS: $1/key/month
-- AWS Budgets: Free (first 2 budgets)
+- KMS: $1/key/month — one key per environment (dev + prod = ~$2)
+- AWS Budgets: Free (first 2 budgets cover dev + prod)
 
 ## Security Considerations
 
@@ -189,7 +219,7 @@ See `docs/post-mortem-*.md` for detailed incident reports covering:
 
 ## Future Enhancements
 
-- [ ] Production environment with approval gates
+- [x] Production environment with approval gates
 - [ ] Anomaly detection using AWS Cost Anomaly Detection
 - [ ] Slack/Teams integration
 - [ ] Cost forecasting dashboard
