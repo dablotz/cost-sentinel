@@ -1,20 +1,18 @@
-variable "common_tags" {
-  type = map(string)
-  default = {
-    Project     = "cost-sentinel"
-    ManagedBy   = "terraform"
-    Environment = "dev"
-  }
+variable "project" {
+  type        = string
+  default     = "cost-sentinel"
+  description = "Project name, used in resource naming and tagging."
+}
+
+variable "environment" {
+  type        = string
+  default     = "dev"
+  description = "Deployment environment. Drives name_prefix and tags."
 }
 
 variable "aws_region" {
   type    = string
   default = "us-east-1"
-}
-
-variable "name_prefix" {
-  type    = string
-  default = "cost-sentinel-dev"
 }
 
 variable "alerts_bucket_name" {

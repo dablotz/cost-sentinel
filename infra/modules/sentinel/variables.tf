@@ -1,9 +1,9 @@
 variable "common_tags" {
-  type = map(string)
+  type        = map(string)
+  description = "Tags applied to all resources. Callers should pass an env-specific map; the default is a neutral fallback for module tests."
   default = {
-    Project     = "cost-sentinel"
-    ManagedBy   = "terraform"
-    Environment = "dev"
+    Project   = "cost-sentinel"
+    ManagedBy = "terraform"
   }
 }
 
@@ -25,8 +25,8 @@ variable "force_destroy_bucket" {
 
 variable "sns_topic_name" {
   type        = string
-  default     = "cost-sentinel-budget-alerts"
-  description = "SNS topic name for budget alerts."
+  default     = null
+  description = "SNS topic name for budget alerts. Defaults to \"<name_prefix>-budget-alerts\" when unset."
 }
 
 variable "alert_email" {
@@ -47,8 +47,14 @@ variable "lambda_s3_key" {
 
 variable "budget_name" {
   type        = string
-  default     = "cost-sentinel-monthly-cost"
-  description = "AWS Budget name."
+  default     = null
+  description = "AWS Budget name. Defaults to \"<name_prefix>-monthly-cost\" when unset."
+}
+
+variable "enable_budget" {
+  type        = bool
+  default     = true
+  description = "Whether to create the AWS Budget. Set false for a non-alerting environment (e.g. dev) so it does not duplicate the account-wide budget owned by prod."
 }
 
 variable "monthly_budget_usd" {

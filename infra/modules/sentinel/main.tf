@@ -1,13 +1,3 @@
-terraform {
-  required_version = "~> 1.7.5"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-  }
-}
-
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
@@ -33,6 +23,11 @@ locals {
 
   dashboard_enabled = length(local.dashboard_bucket_name_norm) > 0
   email_enabled     = length(local.alert_email_norm) > 0
+
+  # Resource names are env-scoped via name_prefix to avoid collisions across
+  # environments in the same account. Callers may override explicitly.
+  sns_topic_name = coalesce(var.sns_topic_name, "${var.name_prefix}-budget-alerts")
+  budget_name    = coalesce(var.budget_name, "${var.name_prefix}-monthly-cost")
 }
 
 resource "aws_s3_bucket" "alerts" {
@@ -92,7 +87,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "alerts" {
 }
 
 resource "aws_s3_bucket" "dashboard" {
-  count         = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count         = local.dashboard_enabled ? 1 : 0
   bucket        = var.dashboard_bucket_name
   force_destroy = var.force_destroy_bucket
   tags          = var.common_tags
@@ -104,7 +99,7 @@ resource "aws_s3_bucket" "dashboard" {
 
 # NOTE: For a public static website, we must allow a public bucket policy.
 resource "aws_s3_bucket_public_access_block" "dashboard" {
-  count                   = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count                   = local.dashboard_enabled ? 1 : 0
   bucket                  = aws_s3_bucket.dashboard[0].id
   block_public_acls       = true
   ignore_public_acls      = true
@@ -113,13 +108,13 @@ resource "aws_s3_bucket_public_access_block" "dashboard" {
 }
 
 resource "aws_s3_bucket_versioning" "dashboard" {
-  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count  = local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
   versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count  = local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
 
   rule {
@@ -133,7 +128,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "dashboard" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count  = local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
   rule {
     apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
@@ -141,7 +136,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "dashboard" {
 }
 
 resource "aws_s3_bucket_website_configuration" "dashboard" {
-  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count  = local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
 
   index_document { suffix = "index.html" }
@@ -150,7 +145,7 @@ resource "aws_s3_bucket_website_configuration" "dashboard" {
 
 # Allow public reads of dashboard site assets + latest.json only
 resource "aws_s3_bucket_policy" "dashboard_public_read" {
-  count  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count  = local.dashboard_enabled ? 1 : 0
   bucket = aws_s3_bucket.dashboard[0].id
 
   # Ensure BPA settings are applied before policy is put
@@ -192,7 +187,7 @@ resource "aws_s3_object" "dashboard_asset" {
 
 
 resource "aws_s3_object" "dashboard_version" {
-  count                  = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count                  = local.dashboard_enabled ? 1 : 0
   bucket                 = aws_s3_bucket.dashboard[0].bucket
   key                    = "version.txt"
   content                = "deployed_at=${timestamp()}\n"
@@ -202,7 +197,7 @@ resource "aws_s3_object" "dashboard_version" {
 }
 
 resource "aws_s3_object" "dashboard_latest_placeholder" {
-  count = var.dashboard_bucket_name == null || local.dashboard_enabled ? 1 : 0
+  count = local.dashboard_enabled ? 1 : 0
 
   bucket = aws_s3_bucket.dashboard[0].bucket
   key    = "latest.json"
@@ -224,7 +219,7 @@ resource "aws_s3_object" "dashboard_latest_placeholder" {
 }
 
 resource "aws_sns_topic" "budget_alerts" {
-  name              = var.sns_topic_name
+  name              = local.sns_topic_name
   kms_master_key_id = aws_kms_key.main.id
   tags              = var.common_tags
 }
@@ -363,9 +358,12 @@ resource "aws_sns_topic_subscription" "lambda" {
   endpoint  = aws_lambda_function.ingestor.arn
 }
 
-# Budget: keep it simple, monthly cost budget
+# Budget: keep it simple, monthly cost budget.
+# Optional so a non-alerting environment (e.g. dev) can run the monitoring
+# stack without duplicating account-wide budget alerts owned by prod.
 resource "aws_budgets_budget" "monthly_cost" {
-  name         = var.budget_name
+  count        = var.enable_budget ? 1 : 0
+  name         = local.budget_name
   budget_type  = "COST"
   limit_amount = tostring(var.monthly_budget_usd)
   limit_unit   = "USD"
