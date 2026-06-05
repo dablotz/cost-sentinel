@@ -440,18 +440,21 @@ resource "aws_iam_role_policy" "codebuild_integration_policy" {
         ]
       },
 
-      # Invoke the ingestor Lambda
+      # Invoke the ingestor Lambda (any env: cost-sentinel-<env>-ingestor)
       {
         Effect   = "Allow",
         Action   = ["lambda:InvokeFunction"],
-        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:cost-sentinel-dev-ingestor"
+        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.name_prefix}-*-ingestor"
       },
 
-      # Read the dashboard object
+      # Read the dashboard object (dev + prod dashboard buckets)
       {
-        Effect   = "Allow",
-        Action   = ["s3:GetObject"],
-        Resource = "arn:aws:s3:::${var.dashboard_bucket_name_dev}/latest.json"
+        Effect = "Allow",
+        Action = ["s3:GetObject"],
+        Resource = [
+          "arn:aws:s3:::${var.dashboard_bucket_name_dev}/latest.json",
+          "arn:aws:s3:::${var.dashboard_bucket_name_prod}/latest.json"
+        ]
       }
     ]
   })
@@ -541,6 +544,60 @@ resource "aws_codebuild_project" "deploy_dev" {
   }
 }
 
+resource "aws_codebuild_project" "deploy_prod" {
+  name         = "${var.name_prefix}-deploy-prod"
+  service_role = aws_iam_role.codebuild_deploy_role.arn
+
+  artifacts { type = "CODEPIPELINE" }
+
+  environment {
+    compute_type = "BUILD_GENERAL1_SMALL"
+    image        = "aws/codebuild/standard:7.0"
+    type         = "LINUX_CONTAINER"
+
+    environment_variable {
+      name  = "ARTIFACT_BUCKET"
+      value = aws_s3_bucket.artifacts.bucket
+    }
+    environment_variable {
+      name  = "TF_STATE_BUCKET"
+      value = aws_s3_bucket.tfstate.bucket
+    }
+    environment_variable {
+      name  = "TF_STATE_KEY"
+      value = "cost-sentinel/prod.tfstate"
+    }
+    environment_variable {
+      name  = "TF_LOCK_TABLE"
+      value = aws_dynamodb_table.tflock.name
+    }
+
+    # These feed the prod app env Terraform variables.
+    # Note: no BUDGET_EMAIL - prod's email subscription is managed manually.
+    environment_variable {
+      name  = "ALERTS_BUCKET_NAME_PROD"
+      value = var.alerts_bucket_name_prod
+    }
+    environment_variable {
+      name  = "MONTHLY_BUDGET_USD"
+      value = tostring(var.monthly_budget_usd)
+    }
+    environment_variable {
+      name  = "BUDGET_THRESHOLDS"
+      value = join(",", [for n in var.budget_thresholds_percent : tostring(n)])
+    }
+    environment_variable {
+      name  = "DASHBOARD_BUCKET_NAME_PROD"
+      value = var.dashboard_bucket_name_prod
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "infra/bootstrap/buildspec-deploy-prod.yml"
+  }
+}
+
 resource "aws_codebuild_project" "integration_dev" {
   name         = "${var.name_prefix}-integration-dev"
   service_role = aws_iam_role.codebuild_integration_role.arn
@@ -556,6 +613,24 @@ resource "aws_codebuild_project" "integration_dev" {
   source {
     type      = "CODEPIPELINE"
     buildspec = "infra/bootstrap/buildspec-integration-dev.yml"
+  }
+}
+
+resource "aws_codebuild_project" "integration_prod" {
+  name         = "${var.name_prefix}-integration-prod"
+  service_role = aws_iam_role.codebuild_integration_role.arn
+
+  artifacts { type = "CODEPIPELINE" }
+
+  environment {
+    compute_type = "BUILD_GENERAL1_SMALL"
+    image        = "aws/codebuild/standard:7.0"
+    type         = "LINUX_CONTAINER"
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "infra/bootstrap/buildspec-integration-prod.yml"
   }
 }
 
@@ -597,7 +672,9 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Resource = [
           aws_codebuild_project.build.arn,
           aws_codebuild_project.deploy_dev.arn,
-          aws_codebuild_project.integration_dev.arn
+          aws_codebuild_project.integration_dev.arn,
+          aws_codebuild_project.deploy_prod.arn,
+          aws_codebuild_project.integration_prod.arn
         ]
       },
       # Use connection
@@ -696,6 +773,52 @@ resource "aws_codepipeline" "pipeline" {
       input_artifacts = ["build_output", "deploy_dev_output"]
       configuration = {
         ProjectName   = aws_codebuild_project.integration_dev.name
+        PrimarySource = "build_output"
+      }
+    }
+  }
+
+  stage {
+    name = "ApproveProd"
+    action {
+      name     = "ManualApproval"
+      category = "Approval"
+      owner    = "AWS"
+      provider = "Manual"
+      version  = "1"
+      configuration = {
+        CustomData = "Promote the current dev-validated commit to prod. Prod owns the account-wide budget; see docs/runbook-prod-cutover.md."
+      }
+    }
+  }
+
+  stage {
+    name = "DeployProd"
+    action {
+      name             = "TerraformApplyProd"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      version          = "1"
+      input_artifacts  = ["build_output"]
+      output_artifacts = ["deploy_prod_output"]
+      configuration = {
+        ProjectName = aws_codebuild_project.deploy_prod.name
+      }
+    }
+  }
+
+  stage {
+    name = "IntegrationProd"
+    action {
+      name            = "IntegrationTestsProd"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      version         = "1"
+      input_artifacts = ["build_output", "deploy_prod_output"]
+      configuration = {
+        ProjectName   = aws_codebuild_project.integration_prod.name
         PrimarySource = "build_output"
       }
     }

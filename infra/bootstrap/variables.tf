@@ -32,6 +32,11 @@ variable "alerts_bucket_name_dev" {
   description = "Globally unique bucket name for app alerts bucket (dev)."
 }
 
+variable "alerts_bucket_name_prod" {
+  type        = string
+  description = "Globally unique bucket name for app alerts bucket (prod). Must contain \"cost-sentinel\" to satisfy the deploy role's S3 scope."
+}
+
 variable "tf_state_bucket_name" {
   type        = string
   description = "Globally unique bucket name for Terraform remote state."
@@ -61,4 +66,9 @@ variable "budget_thresholds_percent" {
 variable "dashboard_bucket_name_dev" {
   type        = string
   description = "Globally unique bucket name for the public dashboard site bucket (dev)."
+}
+
+variable "dashboard_bucket_name_prod" {
+  type        = string
+  description = "Globally unique bucket name for the public dashboard site bucket (prod). Must contain \"cost-sentinel\" to satisfy the deploy role's S3 scope."
 }

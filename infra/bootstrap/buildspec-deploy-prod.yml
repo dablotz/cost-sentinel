@@ -1,0 +1,56 @@
+version: 0.2
+
+env:
+  variables:
+    TF_IN_AUTOMATION: "true"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - curl -sSLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip
+      - unzip -o /tmp/terraform.zip -d /usr/local/bin
+
+  build:
+    commands:
+      - BUILD_ID=$(cat dist/build-id.txt)
+      - echo "Using Lambda build ${BUILD_ID}"
+      - export LAMBDA_S3_KEY="lambda-builds/ingestor-${BUILD_ID}.zip"
+      - cd infra/envs/prod
+      - export REPO_ROOT="$CODEBUILD_SRC_DIR"
+
+      # Create terraform.tfvars.
+      # Note: alert_email is intentionally omitted - prod's email subscription
+      # is managed manually in the Console (see docs/runbook-prod-cutover.md).
+      - |
+        cat > terraform.tfvars <<EOF
+        alerts_bucket_name = "${ALERTS_BUCKET_NAME_PROD}"
+        lambda_s3_bucket   = "${ARTIFACT_BUCKET}"
+        lambda_s3_key      = "${LAMBDA_S3_KEY}"
+        monthly_budget_usd = ${MONTHLY_BUDGET_USD}
+        budget_thresholds_percent = [${BUDGET_THRESHOLDS}]
+        dashboard_bucket_name = "${DASHBOARD_BUCKET_NAME_PROD}"
+        EOF
+
+      # Create backend config
+      - |
+        cat > backend.hcl <<EOF
+        bucket         = "${TF_STATE_BUCKET}"
+        key            = "${TF_STATE_KEY}"
+        region         = "${AWS_REGION}"
+        dynamodb_table = "${TF_LOCK_TABLE}"
+        EOF
+
+      # Initialize Terraform
+      - terraform init -backend-config=backend.hcl
+
+      # Plan and apply
+      - terraform plan -out=tfplan
+      - terraform apply -auto-approve tfplan
+      - terraform output -json > "$REPO_ROOT/terraform-outputs.json"
+      - ls -la "$REPO_ROOT/terraform-outputs.json"
+
+artifacts:
+  files:
+    - terraform-outputs.json

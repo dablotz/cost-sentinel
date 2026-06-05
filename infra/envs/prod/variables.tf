@@ -31,9 +31,12 @@ variable "lambda_s3_key" {
 }
 
 variable "alert_email" {
-  type        = string
-  default     = null
-  description = "Email subscriber for budget alerts (you must confirm the subscription). Prod is the live alerting environment, so this should be set."
+  type    = string
+  default = null
+  # Intentionally left unset: the human-facing email subscription is managed
+  # manually via the AWS Console (kept out of Terraform/state), so this stays
+  # null. The Lambda subscription remains Terraform-managed.
+  description = "Optional Terraform-managed email subscriber. Normally null for this project; email alerts are subscribed manually in the Console."
 }
 
 variable "monthly_budget_usd" {

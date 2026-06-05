@@ -1,0 +1,33 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+
+  build:
+    commands:
+      - echo "CODEBUILD_SRC_DIR=$CODEBUILD_SRC_DIR"
+      - echo "Listing sibling sources under $CODEBUILD_SRC_DIR/.."
+      - ls -la "$CODEBUILD_SRC_DIR/.." || true
+
+      # Find terraform outputs artifact (it may be in the secondary artifact directory)
+      - export TF_OUTPUTS_FILE="$(find "$CODEBUILD_SRC_DIR/.." -maxdepth 5 -name terraform-outputs.json -print -quit)"
+      - echo "TF_OUTPUTS_FILE=$TF_OUTPUTS_FILE"
+      - test -n "$TF_OUTPUTS_FILE"
+      - cat "$TF_OUTPUTS_FILE"
+
+      - export AWS_REGION="${AWS_REGION:-us-east-1}"
+
+      - export LAMBDA_FUNCTION_NAME="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["lambda_function_name"]["value"])' "$TF_OUTPUTS_FILE" 2>/dev/null || true)"
+      - export DASHBOARD_BUCKET_NAME="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["dashboard_bucket_name"]["value"])' "$TF_OUTPUTS_FILE")"
+
+      # Fallback if lambda output isn't present yet
+      - if [ -z "${LAMBDA_FUNCTION_NAME}" ] || [ "${LAMBDA_FUNCTION_NAME}" = "None" ]; then export LAMBDA_FUNCTION_NAME="${LAMBDA_FUNCTION_NAME_FALLBACK:-cost-sentinel-prod-ingestor}"; fi
+
+      - echo "AWS_REGION=${AWS_REGION}"
+      - echo "LAMBDA_FUNCTION_NAME=${LAMBDA_FUNCTION_NAME}"
+      - echo "DASHBOARD_BUCKET_NAME=${DASHBOARD_BUCKET_NAME}"
+
+      - chmod +x scripts/integration_test_lambda.sh
+      - ./scripts/integration_test_lambda.sh

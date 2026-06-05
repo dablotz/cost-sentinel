@@ -243,9 +243,11 @@ resource "aws_sns_topic_policy" "budget_alerts" {
   })
 }
 
-# Optional email subscription (nice for early testing)
+# Optional email subscription (nice for early testing). Created only when a
+# non-empty alert_email is provided; this project subscribes email manually
+# via the Console, so alert_email is normally unset.
 resource "aws_sns_topic_subscription" "email" {
-  count     = var.alert_email == null || local.email_enabled ? 1 : 0
+  count     = local.email_enabled ? 1 : 0
   topic_arn = aws_sns_topic.budget_alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
