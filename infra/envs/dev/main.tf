@@ -16,9 +16,11 @@ module "sentinel" {
   alert_email = var.alert_email
 
   # Budget/name default to "<name_prefix>-*" in the module.
-  # Keep dev's budget ON until prod owns the account-wide alert, then flip
-  # this to false so dev runs the stack silently (no duplicate alerts).
-  enable_budget             = true
+  # Disabled: prod owns the single account-wide budget, so dev runs the stack
+  # silently to avoid duplicate alerts. See docs/runbook-prod-cutover.md.
+  # monthly_budget_usd / budget_thresholds_percent are unused while disabled,
+  # but kept so re-enabling is a one-line change.
+  enable_budget             = false
   monthly_budget_usd        = var.monthly_budget_usd
   budget_thresholds_percent = var.budget_thresholds_percent
 
